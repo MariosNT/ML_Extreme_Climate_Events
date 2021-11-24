@@ -5,7 +5,7 @@ from scipy.stats import gamma
 
 # 1 - Why add an 1 in the model fields? For the first step we don't use the ARMA model? We assume β=1?
 # 2 - Do we fix r to be 5 in eq. (35) here?
-# 3 - Is line 93 correct? Shouldn't we return log Poisson?
+# 3 - Is line 94 correct? Shouldn't we return log Poisson?
 
 X = np.random.normal(size=(100, 2), loc=1, scale=1) # Returns a 100x2 matrix of random (normal) elements
 
