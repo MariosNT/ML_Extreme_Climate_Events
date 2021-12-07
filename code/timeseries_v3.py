@@ -18,14 +18,14 @@ X -= np.mean(X, axis=0)
 X /= np.std(X, axis=0)
 
 class cptimeseries():
-    def __init__(self, theta, k=6, p=5): #Improved verion of inputting prior
-	    self.beta_lambda = theta[:k,]
-	    self.beta_mu = theta[k:2*k,]
-	    self.beta_omega = theta[2*k:3*k,]
-	    self.phi_lambda = theta[3*k:3*k+p,]
-	    self.phi_mu = theta[3*k+p:3*k+2*p,]
-	    self.gamma_lambda = theta[3*k+2*p:3*k+3*p,]
-	    self.gamma_mu = theta[3*k+3*p:,]
+    def __init__(self, theta, k=6, p=5):
+        self.beta_lambda = theta[:k,]
+        self.beta_mu = theta[k:2*k,]
+        self.beta_omega = theta[2*k:3*k,]
+        self.phi_lambda = theta[3*k:3*k+p,]
+        self.phi_mu = theta[3*k+p:3*k+2*p,]
+        self.gamma_lambda = theta[3*k+2*p:3*k+3*p,]
+        self.gamma_mu = theta[3*k+3*p:,]
 
 
     def simulate(self, X):
