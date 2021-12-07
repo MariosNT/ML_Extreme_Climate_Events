@@ -17,15 +17,6 @@ X = np.concatenate((X[:,[0,3,4,5]],np.sqrt(pow(X[:,1],2)+pow(X[:,2],2)).reshape(
 X -= np.mean(X, axis=0)
 X /= np.std(X, axis=0)
 
-# 0 - Does X represent the model fields? YES
-# 1 - Why add an 1 in the model fields? For the first step we don't use the ARMA model? We assume β=1? -- corresponds to k
-# 2 - Do we fix r to be 5 in eq. (35) here? YES, r & s here set to be 5, but also fix 5=T at line 74
-# 3 - Is line 94 correct? Shouldn't we return log Poisson?
-
-
-
-""" Q - Why the , at the end? In self.beta etc """
-
 class cptimeseries():
     def __init__(self, theta, k=6, p=5): #Improved verion of inputting prior
 	    self.beta_lambda = theta[:k,]
@@ -92,39 +83,46 @@ class cptimeseries():
             if y[ind] == 0 and z[ind] !=0 or y[ind] != 0 and z[ind] ==0:
                 check = False
         if check == True:
+            ### Initialize likelihood ####
             llhd = 0
+
             # Only linear regression term
             omega_t = np.exp(np.dot(XX, self.beta_omega))
             lambda_t = np.exp(np.dot(XX, self.beta_lambda))
             mu_t = np.exp(np.dot(XX, self.beta_mu))
-            # Add ARMA term
-            for ind_t in range(1, T):
-                # nonzero zs
-                nonzero_z = z[ind_t - (min(ind_t, 5)):ind_t] != 0
 
-                num = z[ind_t - (min(ind_t, 5)):ind_t] - lambda_t[ind_t - (min(ind_t, 5)):ind_t]
-                deno = np.sqrt(lambda_t[ind_t - (min(ind_t, 5)):ind_t])
-                MA_comp = np.sum(self.gamma_lambda[-min(ind_t, 5):][nonzero_z] * (num[nonzero_z] / deno[nonzero_z]) )
-                # update lambda_t
-                lambda_t[ind_t] = np.exp(np.log(lambda_t[ind_t]) + np.sum(self.phi_lambda[-min(ind_t, 5):] *\
-                                  (np.log(lambda_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_lambda[0]))
+            for ind_t in range(T):
+                ####### Loop over data for every timepoint ########
+                if ind_t > 0:
+                    ########### Update lambda_t and mu_t if ind_t > 0 -- Add ARMA term #############
+                    #### nonzero zs
+                    nonzero_z = z[ind_t - (min(ind_t, 5)):ind_t] != 0
+                    #### Update lambda_t
+                    num = z[ind_t - (min(ind_t, 5)):ind_t] - lambda_t[ind_t - (min(ind_t, 5)):ind_t]
+                    deno = np.sqrt(lambda_t[ind_t - (min(ind_t, 5)):ind_t])
+                    MA_comp = np.sum(self.gamma_lambda[-min(ind_t, 5):][nonzero_z] * (num[nonzero_z] / deno[nonzero_z]) )
+                    # update lambda_t
+                    lambda_t[ind_t] = np.exp(np.log(lambda_t[ind_t]) + np.sum(self.phi_lambda[-min(ind_t, 5):] *\
+                                      (np.log(lambda_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_lambda[0]))
+                                             + MA_comp)
+                    #print('lambda_t :' +str(lambda_t[ind_t]))
+                    #### Update mu_t
+                    num = (y[ind_t - (min(ind_t, 5)):ind_t] - z[ind_t - (min(ind_t, 5)):ind_t] *
+                           mu_t[ind_t - (min(ind_t, 5)):ind_t])
+                    deno = (mu_t[ind_t - (min(ind_t, 5)):ind_t] *
+                            np.sqrt(z[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
+                    MA_comp = np.sum(self.gamma_mu[-min(ind_t, 5):][nonzero_z]
+                                     * (num[nonzero_z] / deno[nonzero_z]))
+                    mu_t[ind_t] = np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
+                                        (np.log(mu_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_mu[0])) \
                                          + MA_comp)
-                #print('lambda_t :' +str(lambda_t[ind_t]))
-                # Update mu_t
-                num = (y[ind_t - (min(ind_t, 5)):ind_t] - z[ind_t - (min(ind_t, 5)):ind_t] *
-                       mu_t[ind_t - (min(ind_t, 5)):ind_t])
-                deno = (mu_t[ind_t - (min(ind_t, 5)):ind_t] *
-                        np.sqrt(z[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
-                MA_comp = np.sum(self.gamma_mu[-min(ind_t, 5):][nonzero_z]
-                                 * (num[nonzero_z] / deno[nonzero_z]))
-                mu_t[ind_t] = np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
-                                    (np.log(mu_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_mu[0])) \
-                                     + MA_comp)
-                #print('mu_t :' +str(mu_t[ind_t]))
+                    #print('mu_t :' +str(mu_t[ind_t]))
+
+                ################ Compute likelihood
                 if y[ind_t] > 0 and z[ind_t]>0:
                     llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))
                 elif y[ind_t] == 0 and z[ind_t] == 0:
-                    llhd += - lambda_t[ind_t] # Is this correct? I thought a Poisson should be returned? Is this because of the log
+                    llhd += - lambda_t[ind_t]
             if np.isnan(llhd):
                 # Return -ve inf for the theta and z, the timeseries diverges
                 final = -np.inf
@@ -136,14 +134,6 @@ class cptimeseries():
         return final
 
 ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
-
-""" Q - Would it make much difference, which one to select? """
-
-
-## No realistic priors - just mean values ##
-### 29 values for prior θ
-### (29x29) matrix for Sigma_0
-
 theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0], np.zeros(shape=(20,))))
 Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(18,)), (1/(1.3*65))*np.ones(shape=(20,)))))
 
@@ -187,7 +177,7 @@ z_state[zero_y_indices] = 0 #z_state an array of 0, 1
 theta_state = theta_0
 
 for ind_Gibbs in range(n_step_Gibbs):
-    print(ind_Gibbs)
+    #print(ind_Gibbs)
 
     #### First sample theta using Elliptic Slice Sampler ###
     # define conditional likelihood for theta
