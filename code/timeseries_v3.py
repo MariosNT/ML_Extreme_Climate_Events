@@ -165,7 +165,7 @@ print(cptimeseries(true_theta).loglikelihood(z, y, X))
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
 
 # number of steps Gibbs we want to use
-n_step_Gibbs = 100
+n_step_Gibbs = 10
 
 ### Lists to store the samples
 Theta, Z = [], []
@@ -220,6 +220,7 @@ for ind_Gibbs in range(n_step_Gibbs):
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
     print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
+np.savez('timeseries_samples', Z=Z, Theta=Theta)
 
 
 
