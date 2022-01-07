@@ -39,8 +39,8 @@ def plot_Gibbs_samples(theta, n_burn=0):
         plt.figure(figsize=(10, 8))
         plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'b')
         plt.title("Parameter {} for year {}".format(i+1, year))
-        #plt.show()
-        plt.savefig(location+"parameteres_{}_Gsteps_{}.png".format(i+1, year))
+        plt.show()
+        #plt.savefig(location+"parameteres_{}_Gsteps_{}.png".format(i+1, year))
         plt.close()
 
         
@@ -94,8 +94,8 @@ plt.ylim(0, np.max(Y)+1)
 plt.title("Y mean - Year {}".format(year))
 plt.xlabel("Days")
 plt.ylabel("precipitation (mm)")
-#plt.show()
-plt.savefig(location+"precipitation_mean_{}.png".format(year))
+plt.show()
+#plt.savefig(location+"precipitation_mean_{}.png".format(year))
 plt.close()    
 
 
@@ -110,8 +110,8 @@ plt.ylim(0, np.max(Y)+1)
 plt.title("Y median - Year {}".format(year))
 plt.xlabel("Days")
 plt.ylabel("precipitation (mm)")
-#plt.show()
-plt.savefig(location+"precipitation_median_{}.png".format(year))
+plt.show()
+#plt.savefig(location+"precipitation_median_{}.png".format(year))
 plt.close()    
 
 
@@ -127,10 +127,10 @@ def rms_error_spread(rain_obs, rain_pred, rain_samples):
     return rms_error, rms_spread
 
 rms_error, rms_spread = rms_error_spread(Y, y_median+y_95, y_pred)
-sorted_rms_error, sorted_rms_spread = np.sort(rms_error), np.sort(rms_spread)
+#sorted_rms_error, sorted_rms_spread = np.sort(rms_error), np.sort(rms_spread)
 
 plt.figure(figsize=(10, 8))
-plt.plot(sorted_rms_spread, sorted_rms_error, 'o-', color = 'black', alpha = 0.5)
+plt.plot(rms_spread, rms_error, 'o-', color = 'black', alpha = 0.5)
 plt.plot(rms_spread, rms_spread, linestyle = '--', color = 'black')
 plt.xlabel("RMS spread")
 plt.ylabel("RMS error")
@@ -217,8 +217,8 @@ def ROC_plot(rain_thres, rain_obs, rain_pred):
     plt.xlabel("FPR")
     plt.ylabel("TPR")
     plt.title("AUC = {}".format(AUC))
-    #plt.show()
-    plt.savefig(location+"ROC_{}.png".format(year))
+    plt.show()
+    #plt.savefig(location+"ROC_{}.png".format(year))
     plt.close()    
     
     return true_positives, false_positives
@@ -260,8 +260,8 @@ plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'b
 plt.xlabel("Rain thresholds [x (mm)]")
 plt.ylabel("Probability [rain>x]")
 plt.legend()
-#plt.show()
-plt.savefig(location+"precipitation_prob_{}.png".format(year))
+plt.show()
+#plt.savefig(location+"precipitation_prob_{}.png".format(year))
 plt.close()    
 
 ### Plotting residuals
