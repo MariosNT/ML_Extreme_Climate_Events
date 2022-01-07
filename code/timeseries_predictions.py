@@ -11,7 +11,7 @@ from timeseries_v3 import cptimeseries
 
 ### Importing observed data & model fields
 
-year = 2018 #For now, we're focusing on a single year
+year = 2000 #For now, we're focusing on a single year
 location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
 
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
@@ -103,9 +103,9 @@ plt.close()
 plt.figure(figsize=(10, 8))
 plt.plot(time, y_median, linestyle = '-', color = 'b')
 plt.plot(time, Y, marker='+', linestyle='', color = 'black')
-plt.fill_between(time, y_median-y_68, y_median+y_68, color='red')
-plt.fill_between(time, y_median-y_95, y_median+y_95, color='red', alpha=0.5)
-plt.fill_between(time, y_median-y_max, y_median+y_max, color='red', alpha=0.2)
+plt.fill_between(time, y_median, y_68, color='red')
+plt.fill_between(time, y_median, y_95, color='red', alpha=0.5)
+plt.fill_between(time, y_median, y_max, color='red', alpha=0.2)
 plt.ylim(0, np.max(Y)+1)
 plt.title("Y median - Year {}".format(year))
 plt.xlabel("Days")
@@ -126,7 +126,7 @@ def rms_error_spread(rain_obs, rain_pred, rain_samples):
     
     return rms_error, rms_spread
 
-rms_error, rms_spread = rms_error_spread(Y, y_median+y_95, y_pred)
+rms_error, rms_spread = rms_error_spread(Y, y_median, y_pred)
 #sorted_rms_error, sorted_rms_spread = np.sort(rms_error), np.sort(rms_spread)
 
 plt.figure(figsize=(10, 8))
@@ -134,8 +134,8 @@ plt.plot(rms_spread, rms_error, 'o-', color = 'black', alpha = 0.5)
 plt.plot(rms_spread, rms_spread, linestyle = '--', color = 'black')
 plt.xlabel("RMS spread")
 plt.ylabel("RMS error")
-#plt.show()
-plt.savefig(location+"spread-skill_{}.png".format(year))
+plt.show()
+#plt.savefig(location+"spread-skill_{}.png".format(year))
 plt.close()    
 
 "With bins"
@@ -225,7 +225,7 @@ def ROC_plot(rain_thres, rain_obs, rain_pred):
     
 thresholds = np.array([0, 1, 2, 3, 4, 5, 10, 15, 20])
 
-Tpr, Fpr = ROC_plot(thresholds, Y, y_median+y_95)
+Tpr, Fpr = ROC_plot(thresholds, Y, y_95)
 
 
 
@@ -250,7 +250,7 @@ rain_probability_pred_95 = []
 for rain in rain_thresholds:
     rain_probability_obs.append(precipitation_above_x(rain, Y))
     rain_probability_pred.append(precipitation_above_x(rain, y_median))
-    rain_probability_pred_95.append(precipitation_above_x(rain, y_median+y_95))
+    rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
 
     
 plt.figure(figsize=(10, 8))
