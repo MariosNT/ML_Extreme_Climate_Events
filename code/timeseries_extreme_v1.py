@@ -5,10 +5,12 @@ from scipy.stats import gamma, multivariate_normal, genpareto
 from scipy import optimize
 import pylab as plt
 from Sampler import EllipticalSliceSampling
+from joblib import Parallel, delayed
+
 
 #X = np.random.normal(size=(100, 2), loc=1, scale=1)
 # Model fields
-X = np.load('../Data/Data/model_fields_Cardiff.npy')
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff.npy')
 # Calculating transpose such that each row corresponds for a day
 X = np.transpose(X)
 # Calculating windspeed and consider that as avraible
@@ -17,7 +19,7 @@ X = np.concatenate((X[:,[0,3,4,5]],np.sqrt(pow(X[:,1],2)+pow(X[:,2],2)).reshape(
 X -= np.mean(X, axis=0)
 X /= np.std(X, axis=0)
 # Rain fall
-Y = np.load('../Data/Data/rainfall_Cardiff_1979.npy')
+Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\rainfall_Cardiff_1979.npy')
 print(Y.shape)
 
 
@@ -237,8 +239,26 @@ Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30,)), (1/(1.3*65))*np.on
 
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
 
+# ## Realistic priors ##
+# # Sampling from prior to define a true_theta
+
+# beta_lambda, beta_mu, beta_omega = np.random.normal(size=(6,), loc=[-0.46, 0, 0, 0, 0, 0], scale=1/6), \
+#                                    np.random.normal(size=(6,), loc=[1.44, 0, 0, 0, 0, 0], scale=1/6), \
+#                                    np.random.normal(size=(6,), loc=[-0.45, 0, 0, 0, 0, 0], scale=1/6)
+# phi_lambda, phi_mu, gamma_lambda, gamma_mu = np.random.normal(size=(5,), scale=1/(1.3*65)),\
+#                                              np.random.normal(size=(5,), scale=1/(1.3*65)),\
+#                                              np.random.normal(size=(5,), scale=1/(1.3*65)),\
+#                                              np.random.normal(size=(5,), scale=1/(1.3*65))
+# true_theta = np.array([])
+# for array in [beta_lambda, beta_mu, beta_omega, phi_lambda, phi_mu, gamma_lambda, gamma_mu]:
+#     true_theta = np.concatenate([true_theta, array])
+
+# #### Simulated data
+# z, y = cptimeseries_extreme(true_theta).simulate(X)
+# print(cptimeseries_extreme(true_theta).loglikelihood(z, y, X))
+
 # number of steps Gibbs we want to use
-n_step_Gibbs = 10
+n_step_Gibbs = 2
 
 ### Lists to store the samples
 Theta, Z = [], []
@@ -255,6 +275,10 @@ theta_state = theta_0
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
 
+def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
+    possible_z[ind_non] = ind_z + 1
+    prob_z[ind_z] = loglikelihood_z(possible_z)
+    return prob_z
 
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
@@ -277,15 +301,15 @@ for ind_Gibbs in range(n_step_Gibbs):
             possible_z = z_state
             for ind_nonzero in nonzero_y_indices:
                 prob_z = np.zeros(9)
-                for ind_z in range(9):  ### Why 9 here? Times it rains/day
-                    possible_z[ind_nonzero] = ind_z + 1
-                    prob_z[ind_z] = loglikelihood_z(possible_z)
-                #print(prob_z)
+                prob_z = Parallel(n_jobs=4)(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z)\
+                           for ind_z in range(9))
+                prob_z = np.sum(prob_z, axis=0)
+                    #print(prob_z)
                 finite_indices = np.isfinite(prob_z)
                 prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
                 possible_z[ind_nonzero] = np.random.choice(a=np.arange(1, 10)[finite_indices],
-                                                           p=prob_z / np.sum(prob_z))
-            z_state = possible_z
+                                                               p=prob_z / np.sum(prob_z))
+                z_state = possible_z
         except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
             continue
         break
@@ -294,4 +318,4 @@ for ind_Gibbs in range(n_step_Gibbs):
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
     print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
-np.savez('timeseries_extreme_samples', Z=Z, Theta=Theta)
+#np.savez('timeseries_extreme_samples', Z=Z, Theta=Theta)

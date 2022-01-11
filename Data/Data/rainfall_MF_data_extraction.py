@@ -1,6 +1,9 @@
 """
-
+Code to extract 1) Observed Rainfall data and 2) Linearly Extrapolated Model Fields
+from different UK cities, between 1979 and 2019
 """
+
+
 ### Packages ###
 import numpy as np
 import xarray as xr

@@ -44,7 +44,7 @@ def plot_Gibbs_samples(theta, n_burn=0):
         plt.close()
 
         
-plot_Gibbs_samples(Theta, N_burn)
+#plot_Gibbs_samples(Theta, N_burn)
 
 
 ### Making predictions
@@ -141,27 +141,21 @@ plt.close()
 "With bins"
 #So far binning the final results - would it be better to been earlier?
 
-## Break the 365 days to 73 bins of 5 days
-# Y_binned = Y.reshape((73,5))
-# Y_binned_mean = np.mean(Y_binned, axis=1)
+n_bins = 16
+rms_spread_binned = np.array(np.array_split(rms_spread, n_bins), dtype=object)
+rms_error_binned = np.array(np.array_split(rms_error, n_bins), dtype=object)
 
-# y_median_binned = y_median.reshape((73,5))
-# y_median_binned_mean = np.mean(y_median_binned, axis=1)
+v_mean = np.vectorize(np.mean)
 
-# rms_error_binned = np.sqrt((Y_binned_mean-y_median_binned_mean)**2)
+rms_spread_mean = v_mean(rms_spread_binned)
+rms_error_mean = v_mean(rms_error_binned)
 
-# rms_error_binned = rms_error.reshape((73,5))
-# rms_error_mean = np.mean(rms_error_binned, axis=1)
-
-# rms_spread_binned = rms_spread.reshape((73,5))
-# rms_spread_mean = np.mean(rms_spread_binned, axis=1)
-
-# plt.figure(figsize=(10, 8))
-# plt.scatter(rms_spread_mean, rms_error_mean, color = 'black')
-# plt.plot(rms_spread_mean, rms_spread_mean, linestyle = '--', color = 'grey')
-# plt.xlabel("RMS spread binned")
-# plt.ylabel("RMS error binned")
-# plt.show()
+plt.figure(figsize=(10, 8))
+plt.plot(rms_spread_mean, rms_error_mean, 'o-', color = 'black')
+plt.plot(np.sort(rms_spread_mean), np.sort(rms_spread_mean), linestyle = '--', color = 'grey')
+plt.xlabel("RMS spread binned")
+plt.ylabel("RMS error binned")
+plt.show()
 
 ###### Calculate RMSB error & MAB error
 # Here we only have 1 location, so S=1
@@ -179,7 +173,7 @@ plt.close()
 # print("MAB error is: ", mab_error)
 
 
-
+"""
 ### Calculate ROC curve
 # Questions:
 # 1 - Which values to use as predictions? 
@@ -226,7 +220,7 @@ def ROC_plot(rain_thres, rain_obs, rain_pred):
 thresholds = np.array([0, 1, 2, 3, 4, 5, 10, 15, 20])
 
 Tpr, Fpr = ROC_plot(thresholds, Y, y_95)
-
+"""
 
 
 ### Calculate probability of precipitation
@@ -237,26 +231,37 @@ Tpr, Fpr = ROC_plot(thresholds, Y, y_95)
 # Which value we use for predictions?
 
 def precipitation_above_x(rain_thres, rainvalues):
-    all_days = len(rainvalues)
-    length_above_x = np.sum(rainvalues>rain_thres)
+    if np.shape(rainvalues)[0]==len(Y):
+        all_days = len(rainvalues)
+        length_above_x = np.sum(rainvalues>rain_thres)
     
-    return length_above_x/all_days
+        return length_above_x/all_days
+    
+    else: 
+        rainfall_all = rainvalues.flatten()
+        all_days = len(rainfall_all)
+        length_above_x = np.sum(rainfall_all>rain_thres)
+        
+        return length_above_x/all_days
 
 rain_thresholds = np.arange(0, 30, 1)
 rain_probability_obs = []
 rain_probability_pred = []
 rain_probability_pred_95 = []
+rain_probability_samples = []
 
 for rain in rain_thresholds:
     rain_probability_obs.append(precipitation_above_x(rain, Y))
     rain_probability_pred.append(precipitation_above_x(rain, y_median))
     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
+    rain_probability_samples.append(precipitation_above_x(rain, y_pred))
 
     
 plt.figure(figsize=(10, 8))
 plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs.")
 plt.plot(rain_thresholds, rain_probability_pred, linestyle = '-', color = 'black', label = "Pred.")
 plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'black', label = "Pred. 95")
+plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
 plt.xlabel("Rain thresholds [x (mm)]")
 plt.ylabel("Probability [rain>x]")
 plt.legend()
