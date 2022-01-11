@@ -1,5 +1,5 @@
 """
-
+Improved sampling code
 """
 
 import copy
