@@ -190,12 +190,15 @@ nonzero_y_indices = en[np.invert(bool_y_zero)]
 
 #### For non-zero y, get distribution of rainfalls and calculate quantiles
 #### Then use this to initialise z (1, 2, 3, 4), based on the quantiles
-y_max = np.max(Y)
-edges = np.linspace(0, y_max, 5)
+y_non_zero = Y[Y>0]
+edge1 = np.quantile(y_non_zero, 0.25)
+edge2 = np.quantile(y_non_zero, 0.5)
+edge3 = np.quantile(y_non_zero, 0.75)
+edge4 = np.max(Y)
 
-bin_2 = (edges[1]<=Y) & (Y<=edges[2])
-bin_3 = (edges[2]<Y) & (Y<=edges[3])
-bin_4 = (edges[3]<Y) & (Y<=edges[4])
+bin_2 = (edge1<=Y) & (Y<=edge2)
+bin_3 = (edge2<Y) & (Y<=edge3)
+bin_4 = (edge3<Y) & (Y<=edge4)
 
 z_state = np.ones(shape=Y.shape)
 z_state[bin_2] = 2
@@ -209,7 +212,7 @@ theta_state = theta_0
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
 
-n, bins, patches = plt.hist(Y, 20, density=True, facecolor='g', alpha=0.75)
+n, bins, patches = plt.hist(Y[Y>0], 20, density=True, facecolor='g', alpha=0.75)
 
 plt.xlabel('Smarts')
 plt.ylabel('Probability')
