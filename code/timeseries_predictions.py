@@ -185,21 +185,15 @@ plt.show()
 def true_false_positives(rain_thres, rain_obs, rain_pred, roc_thres):    
     bool_obs = rain_obs > rain_thres
     bool_pred = rain_pred > rain_thres
+    bool_new = np.sum(bool_pred, axis=0) >= roc_thres
     
-    TP = np.sum(bool_obs & bool_pred, axis=0)
-    FP = np.sum(np.invert(bool_obs) & bool_pred, axis=0)
-    TN = np.sum(np.invert(bool_obs) & np.invert(bool_pred), axis=0)
-    FN = np.sum(bool_obs & np.invert(bool_pred), axis=0)
+    TP = np.sum(bool_obs & bool_new)
+    FP = np.sum(np.invert(bool_obs) & bool_new)
+    TN = np.sum(np.invert(bool_obs) & np.invert(bool_new))
+    FN = np.sum(bool_obs & np.invert(bool_new))
     
-    ### Need to fix this part - does not count correctly the values
-    sample_size = np.shape(y_pred)[1]
-    TP_perc = np.sum(TP>=roc_thres)
-    FP_perc = np.sum(FP>=roc_thres) #/sample_size
-    TN_perc = np.sum(TN>=roc_thres) #/sample_size
-    FN_perc = np.sum(FN>=roc_thres) #/sample_size
-    
-    TPR = TP_perc/(TP_perc+FN_perc)
-    FPR = FP_perc/(FP_perc+TN_perc)
+    TPR = TP/(TP+FN)
+    FPR = FP/(FP+TN)
     
     return TPR, FPR
 
@@ -217,7 +211,7 @@ def ROC_plot(rain_thres, rain_obs, rain_pred, roc_thres):
     AUC = np.round(np.abs(np.trapz(true_positives, false_positives)), 3)    
 
     plt.figure(figsize=(10, 8))
-    plt.plot(false_positives, true_positives, linestyle = '--', color = 'black')
+    plt.plot(false_positives, true_positives, linestyle = '--', marker = 'x', color = 'black')
     plt.plot(false_positives, false_positives, linestyle = '-', color = 'black')
     plt.xlabel("FPR")
     plt.ylabel("TPR")
@@ -228,12 +222,15 @@ def ROC_plot(rain_thres, rain_obs, rain_pred, roc_thres):
     
     return true_positives, false_positives
     
-thresholds = np.arange(0, 50, 5)
+thresholds = np.union1d(np.arange(0, 10, 1), np.arange(20, 600, 30))
 
 Tpr, Fpr = ROC_plot(5, Y, y_pred, thresholds)
+Tpr, Fpr = ROC_plot(10, Y, y_pred, thresholds)
+Tpr, Fpr = ROC_plot(15, Y, y_pred, thresholds)
 
 
-"""
+
+
 ### Calculate probability of precipitation
 # How many days we predict rainfall above a threshold
 # Compare with observed values
@@ -291,4 +288,3 @@ plt.close()
 # plt.figure(figsize=(10, 8))
 # plt.plot(time, y_mean-Y, linestyle = '-', color = 'b')
 # plt.show()
-"""
