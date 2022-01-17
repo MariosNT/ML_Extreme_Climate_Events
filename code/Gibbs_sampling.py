@@ -8,6 +8,7 @@ import numpy as np
 from scipy.stats import gamma, multivariate_normal
 import pylab as plt
 from Sampler import EllipticalSliceSampling
+from timeseries_v3 import cptimeseries
 import sys
 #import joblib
 from joblib import Parallel, delayed
@@ -63,16 +64,37 @@ n_step_Gibbs = 1
 Theta, Z = [], []
 
 # Extract zero/non-zero indices of y
-zero_y_indices = [i for i, e in enumerate(Y) if e == 0] #"Maybe faster with numpy boolean, but maybe this way useful for later"
-nonzero_y_indices = [i for i, e in enumerate(Y) if e != 0]
+# zero_y_indices = [i for i, e in enumerate(Y) if e == 0] #"Maybe faster with numpy boolean, but maybe this way useful for later"
+# nonzero_y_indices = [i for i, e in enumerate(Y) if e != 0]
+
+en = np.arange(len(Y))
+bool_y_zero = (Y==0)
+
+zero_y_indices = en[bool_y_zero]
+nonzero_y_indices = en[np.invert(bool_y_zero)]
 
 ## Lets first initialize theta and z for a Markov chain ##
 
 #### For non-zero y, get distribution of rainfalls and calculate quantiles
 #### Then use this to initialise z (1, 2, 3, 4), based on the quantiles
+y_non_zero = Y[Y>0]
+edge1 = np.quantile(y_non_zero, 0.25)
+edge2 = np.quantile(y_non_zero, 0.5)
+edge3 = np.quantile(y_non_zero, 0.75)
+edge4 = np.max(Y)
+
+bin_2 = (edge1<=Y) & (Y<=edge2)
+bin_3 = (edge2<Y) & (Y<=edge3)
+bin_4 = (edge3<Y) & (Y<=edge4)
+
 z_state = np.ones(shape=Y.shape)
+z_state[bin_2] = 2
+z_state[bin_3] = 3
+z_state[bin_4] = 4
+
 z_state[zero_y_indices] = 0 #z_state an array of 0, 1
 theta_state = theta_0
+
 # Add to stored samples
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
@@ -144,7 +166,8 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
     prob_z[ind_z] = loglikelihood_z(possible_z)
     return prob_z
 
-"""
+perc = 0.5
+
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
     theta_state = copy.deepcopy(Theta[-1])
@@ -164,7 +187,8 @@ for ind_Gibbs in range(n_step_Gibbs):
             loglikelihood_z = lambda z: cptimeseries(theta_state).loglikelihood(z, Y, X)
             # Sample/Update z
             possible_z = z_state
-            for ind_nonzero in nonzero_y_indices:
+            nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
+            for ind_nonzero in nonzero_y:
                 prob_z = np.zeros(9)
                 prob_z = Parallel(n_jobs=4)(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z)\
                        for ind_z in range(9))
@@ -183,4 +207,3 @@ for ind_Gibbs in range(n_step_Gibbs):
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
     print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
-"""

@@ -32,7 +32,7 @@ n_days = len(Z.T)
 # Gibbs_steps = number of times the sampler was run
 sampling_steps = len(Z)
 Gibbs_steps = np.arange(sampling_steps)
-N_burn = 100
+N_burn = 500
 
 def plot_Gibbs_samples(theta, n_burn=0):
     for i in range(n_param):
@@ -127,23 +127,29 @@ def rms_error_spread(rain_obs, rain_pred, rain_samples):
     return rms_error, rms_spread
 
 rms_error, rms_spread = rms_error_spread(Y, y_median, y_pred)
-#sorted_rms_error, sorted_rms_spread = np.sort(rms_error), np.sort(rms_spread)
+# #sorted_rms_error, sorted_rms_spread = np.sort(rms_error), np.sort(rms_spread)
 
-plt.figure(figsize=(10, 8))
-plt.plot(rms_spread, rms_error, 'o-', color = 'black', alpha = 0.5)
-plt.plot(rms_spread, rms_spread, linestyle = '--', color = 'black')
-plt.xlabel("RMS spread")
-plt.ylabel("RMS error")
-plt.show()
-#plt.savefig(location+"spread-skill_{}.png".format(year))
-plt.close()    
+# plt.figure(figsize=(10, 8))
+# plt.plot(rms_spread, rms_error, 'o-', color = 'black', alpha = 0.5)
+# plt.plot(rms_spread, rms_spread, linestyle = '--', color = 'black')
+# plt.xlabel("RMS spread")
+# plt.ylabel("RMS error")
+# plt.show()
+# #plt.savefig(location+"spread-skill_{}.png".format(year))
+# plt.close()    
 
 "With bins"
 #So far binning the final results - would it be better to been earlier?
 
+rms_spread = rms_spread.reshape(len(rms_spread),1)
+rms_error = rms_error.reshape(len(rms_error),1)
+
+joint_rms = np.concatenate((rms_spread, rms_error), axis=1)
+joint_rms_sorted = np.sort(joint_rms, axis=0)
+
 n_bins = 16
-rms_spread_binned = np.array(np.array_split(rms_spread, n_bins), dtype=object)
-rms_error_binned = np.array(np.array_split(rms_error, n_bins), dtype=object)
+rms_spread_binned = np.array(np.array_split(joint_rms_sorted[:,0], n_bins), dtype=object)
+rms_error_binned = np.array(np.array_split(joint_rms_sorted[:,1], n_bins), dtype=object)
 
 v_mean = np.vectorize(np.mean)
 
@@ -173,31 +179,36 @@ plt.show()
 # print("MAB error is: ", mab_error)
 
 
-"""
-### Calculate ROC curve
-# Questions:
-# 1 - Which values to use as predictions? 
 
-def true_false_positives(rain_thres, rain_obs, rain_pred):    
+### Calculate ROC curve
+
+def true_false_positives(rain_thres, rain_obs, rain_pred, roc_thres):    
     bool_obs = rain_obs > rain_thres
     bool_pred = rain_pred > rain_thres
     
-    TP = np.sum(bool_obs & bool_pred)
-    FP = np.sum(np.invert(bool_obs) & bool_pred)
-    TN = np.sum(np.invert(bool_obs) & np.invert(bool_pred))
-    FN = np.sum(bool_obs & np.invert(bool_pred))
+    TP = np.sum(bool_obs & bool_pred, axis=0)
+    FP = np.sum(np.invert(bool_obs) & bool_pred, axis=0)
+    TN = np.sum(np.invert(bool_obs) & np.invert(bool_pred), axis=0)
+    FN = np.sum(bool_obs & np.invert(bool_pred), axis=0)
     
-    TPR = TP/(TP+FN)
-    FPR = FP/(FP+TN)
+    ### Need to fix this part - does not count correctly the values
+    sample_size = np.shape(y_pred)[1]
+    TP_perc = np.sum(TP>=roc_thres)
+    FP_perc = np.sum(FP>=roc_thres) #/sample_size
+    TN_perc = np.sum(TN>=roc_thres) #/sample_size
+    FN_perc = np.sum(FN>=roc_thres) #/sample_size
+    
+    TPR = TP_perc/(TP_perc+FN_perc)
+    FPR = FP_perc/(FP_perc+TN_perc)
     
     return TPR, FPR
 
-def ROC_plot(rain_thres, rain_obs, rain_pred):
+def ROC_plot(rain_thres, rain_obs, rain_pred, roc_thres):
     true_positives = []
     false_positives = []
 
-    for i in rain_thres:
-        tpr, fpr = true_false_positives(i, rain_obs, rain_pred)
+    for i in roc_thres:
+        tpr, fpr = true_false_positives(rain_thres, rain_obs, rain_pred, i)
         true_positives.append(tpr)
         false_positives.append(fpr)
 
@@ -217,44 +228,50 @@ def ROC_plot(rain_thres, rain_obs, rain_pred):
     
     return true_positives, false_positives
     
-thresholds = np.array([0, 1, 2, 3, 4, 5, 10, 15, 20])
+thresholds = np.arange(0, 50, 5)
 
-Tpr, Fpr = ROC_plot(thresholds, Y, y_95)
+Tpr, Fpr = ROC_plot(5, Y, y_pred, thresholds)
+
+
 """
-
-
 ### Calculate probability of precipitation
 # How many days we predict rainfall above a threshold
 # Compare with observed values
 
-# Question:
-# Which value we use for predictions?
-
-def precipitation_above_x(rain_thres, rainvalues):
+def precipitation_above_x(rain_thres, rainvalues, all_days=True):
     if np.shape(rainvalues)[0]==len(Y):
         all_days = len(rainvalues)
         length_above_x = np.sum(rainvalues>rain_thres)
     
         return length_above_x/all_days
     
-    else: 
+    elif all_days: 
         rainfall_all = rainvalues.flatten()
         all_days = len(rainfall_all)
         length_above_x = np.sum(rainfall_all>rain_thres)
         
         return length_above_x/all_days
+    
+    else:
+        samples_per_day = np.shape(rainvalues)[0]
+        length_above_x = np.sum(rainvalues>rain_thres, axis=0)
+        prob_per_day = length_above_x/samples_per_day
+        
+        return np.mean(prob_per_day)
 
 rain_thresholds = np.arange(0, 30, 1)
 rain_probability_obs = []
 rain_probability_pred = []
 rain_probability_pred_95 = []
 rain_probability_samples = []
+rain_probability_samples_day = []
 
 for rain in rain_thresholds:
     rain_probability_obs.append(precipitation_above_x(rain, Y))
     rain_probability_pred.append(precipitation_above_x(rain, y_median))
     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
     rain_probability_samples.append(precipitation_above_x(rain, y_pred))
+    rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
 
     
 plt.figure(figsize=(10, 8))
@@ -262,6 +279,7 @@ plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black
 plt.plot(rain_thresholds, rain_probability_pred, linestyle = '-', color = 'black', label = "Pred.")
 plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'black', label = "Pred. 95")
 plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
+plt.plot(rain_thresholds, rain_probability_samples_day, marker = 'x', linestyle = ' ', color = 'black', label = "Pred. Samples/Day")
 plt.xlabel("Rain thresholds [x (mm)]")
 plt.ylabel("Probability [rain>x]")
 plt.legend()
@@ -273,3 +291,4 @@ plt.close()
 # plt.figure(figsize=(10, 8))
 # plt.plot(time, y_mean-Y, linestyle = '-', color = 'b')
 # plt.show()
+"""
