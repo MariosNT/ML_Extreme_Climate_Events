@@ -13,6 +13,7 @@ from timeseries_v3 import cptimeseries
 
 year = 2000 #For now, we're focusing on a single year
 location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
+imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Cardiff_'+str(year)+"_gs10000"+"\\"
 
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
 X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year))
@@ -22,7 +23,7 @@ X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Dat
 # Z = number of times rain/day
 # Theta = parameters of the model (Eq. 10)
 
-data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}.npz".format(year))
+data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs10000.npz".format(year))
 Z = data_set["Z"]
 Theta = data_set["Theta"]
 n_param = len(Theta.T)
@@ -32,7 +33,7 @@ n_days = len(Z.T)
 # Gibbs_steps = number of times the sampler was run
 sampling_steps = len(Z)
 Gibbs_steps = np.arange(sampling_steps)
-N_burn = 500
+N_burn = 5000
 
 def plot_Gibbs_samples(theta, n_burn=0):
     for i in range(n_param):
@@ -40,11 +41,11 @@ def plot_Gibbs_samples(theta, n_burn=0):
         plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'b')
         plt.title("Parameter {} for year {}".format(i+1, year))
         plt.show()
-        #plt.savefig(location+"parameteres_{}_Gsteps_{}.png".format(i+1, year))
+        plt.savefig(imlocation+"parameteres_{}_Gsteps_{}.png".format(i+1, year))
         plt.close()
 
         
-#plot_Gibbs_samples(Theta, N_burn)
+plot_Gibbs_samples(Theta, N_burn)
 
 
 ### Making predictions
@@ -111,7 +112,7 @@ plt.title("Y median - Year {}".format(year))
 plt.xlabel("Days")
 plt.ylabel("precipitation (mm)")
 plt.show()
-#plt.savefig(location+"precipitation_median_{}.png".format(year))
+plt.savefig(imlocation+"precipitation_median_{}.png".format(year))
 plt.close()    
 
 
@@ -162,6 +163,8 @@ plt.plot(np.sort(rms_spread_mean), np.sort(rms_spread_mean), linestyle = '--', c
 plt.xlabel("RMS spread binned")
 plt.ylabel("RMS error binned")
 plt.show()
+plt.savefig(imlocation+"spread-skill_{}.png".format(year))
+plt.close()
 
 ###### Calculate RMSB error & MAB error
 # Here we only have 1 location, so S=1
@@ -215,14 +218,14 @@ def ROC_plot(rain_thres, rain_obs, rain_pred, roc_thres):
     plt.plot(false_positives, false_positives, linestyle = '-', color = 'black')
     plt.xlabel("FPR")
     plt.ylabel("TPR")
-    plt.title("AUC = {}".format(AUC))
+    plt.title("AUC = {}".format(AUC) + " RT = {} mm".format(rain_thres))
     plt.show()
-    #plt.savefig(location+"ROC_{}.png".format(year))
+    plt.savefig(imlocation+"ROC_{}.png".format(year))
     plt.close()    
     
     return true_positives, false_positives
     
-thresholds = np.union1d(np.arange(0, 10, 1), np.arange(20, 600, 30))
+thresholds = np.union1d(np.arange(0, 10, 1), np.arange(20, (sampling_steps-N_burn)//2, 30))
 
 Tpr, Fpr = ROC_plot(5, Y, y_pred, thresholds)
 Tpr, Fpr = ROC_plot(10, Y, y_pred, thresholds)
@@ -281,7 +284,7 @@ plt.xlabel("Rain thresholds [x (mm)]")
 plt.ylabel("Probability [rain>x]")
 plt.legend()
 plt.show()
-#plt.savefig(location+"precipitation_prob_{}.png".format(year))
+plt.savefig(imlocation+"precipitation_prob_{}.png".format(year))
 plt.close()    
 
 ### Plotting residuals
