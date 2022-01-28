@@ -1,7 +1,7 @@
 import copy
 
 import numpy as np
-from scipy.stats import gamma, multivariate_normal, genpareto
+from scipy.stats import gamma, multivariate_normal, genpareto, poisson
 from scipy import optimize
 import pylab as plt
 from Sampler import EllipticalSliceSampling
@@ -181,10 +181,12 @@ class cptimeseries_extreme():
 
                 if y[ind_t] > 0 and z[ind_t] > 0:
                     if y[ind_t] <= u_t[ind_t]:
-                        llhd += gamma.logpdf(y[ind_t], a=z_t[ind_t]/omega_t[ind_t], scale= 1/(omega_t[ind_t] * mu_t[ind_t]))
+                        llhd += gamma.logpdf(y[ind_t], a=z_t[ind_t]/omega_t[ind_t], scale= 1/(omega_t[ind_t] * mu_t[ind_t]))+\
+                            np.log(poisson.rvs(lambda_t[ind_t])+1)
                     else:
                         llhd += np.log(1-C_t[ind_t]) + genpareto.logpdf(y[ind_t],
-                                                        c=eta_t[ind_t], loc=u_t[ind_t], scale=sigma_t[ind_t])
+                                                        c=eta_t[ind_t], loc=u_t[ind_t], scale=sigma_t[ind_t])+\
+                            np.log(poisson.rvs(lambda_t[ind_t])+1)
                 elif y[ind_t] == 0 and z[ind_t] == 0:
                     llhd += - lambda_t[ind_t]
             if np.isnan(llhd):
@@ -194,4 +196,4 @@ class cptimeseries_extreme():
                 final = llhd
         else:
             final = -np.inf
-        return final, np.median(lambda_t)
+        return final

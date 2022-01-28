@@ -8,7 +8,7 @@ Created on Tue Jan 11 13:32:56 2022
 import copy
 
 import numpy as np
-from scipy.stats import gamma, multivariate_normal
+from scipy.stats import gamma, multivariate_normal, poisson
 import pylab as plt
 from Sampler import EllipticalSliceSampling
 import sys
@@ -64,7 +64,7 @@ class cptimeseries():
                 num = np.nan_to_num(y_t[ind_t - (min(ind_t, 5)):ind_t] - (z_t[ind_t - (min(ind_t, 5)):ind_t] *
                        mu_t[ind_t - (min(ind_t, 5)):ind_t]))
                 deno = np.nan_to_num(mu_t[ind_t - (min(ind_t,5)):ind_t] *
-                       np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t] ))
+                       np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
                 MA_comp = np.sum(self.gamma_mu[-min(ind_t, 5):][z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]
                                  * (num[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0] / deno[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]))
                 mu_t[ind_t] = np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
@@ -123,8 +123,9 @@ class cptimeseries():
                     #print('mu_t :' +str(mu_t[ind_t]))
 
                 ################ Compute likelihood
-                if y[ind_t] > 0 and z[ind_t]>0:
-                    llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))
+                if y[ind_t] > 0 and z[ind_t]>0 and lambda_t[ind_t]>0:
+                    llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))+\
+                        np.log(poisson.rvs(lambda_t[ind_t])+1)
                 elif y[ind_t] == 0 and z[ind_t] == 0:
                     llhd += - lambda_t[ind_t]
             if np.isnan(llhd):
@@ -135,5 +136,5 @@ class cptimeseries():
         else:
             # Return -ve inf when y and z are not both zero
             final = -np.inf
-        return final, np.median(lambda_t)
+        return final
 

@@ -55,10 +55,10 @@ else:
 #### Simulated data
 if extreme_case:
     z, y, lambda_t, _, _ = cptimeseries_extreme(true_theta).simulate(X)
-    print(cptimeseries_extreme(true_theta).loglikelihood(z, y, X)[1])
+    print(cptimeseries_extreme(true_theta).loglikelihood(z, y, X))
 else:
     z, y, lambda_t, _, _ = cptimeseries(true_theta).simulate(X)
-    print(cptimeseries(true_theta).loglikelihood(z, y, X)[1])
+    print(cptimeseries(true_theta).loglikelihood(z, y, X))
 
 
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
@@ -102,71 +102,12 @@ theta_state = theta_0
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
 
-#### Serial case
-
-"""
-for ind_Gibbs in range(n_step_Gibbs):
-    #print(ind_Gibbs)
-    theta_state = copy.deepcopy(Theta[-1])
-    z_state = copy.deepcopy(Z[-1])
-    while True:
-        try:
-            #### First sample theta using Elliptic Slice Sampler ###
-            # define conditional likelihood for theta
-            loglikelihood_theta = lambda theta: cptimeseries(theta).loglikelihood(z_state, Y, X)
-            # Sample/Update theta
-            ## Here Mean and Sigma are the mean and var-cov matrix of Multivariate normal used as the prior.
-            ## f_0 defines the present state of the Markov chain
-            Samples = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=theta_0, Sigma=Sigma_0,
-                                              f_0=theta_state)
-            theta_state = Samples[-1]
-            # define conditional likelihood for z
-            loglikelihood_z = lambda z: cptimeseries(theta_state).loglikelihood(z, Y, X)
-            # Sample/Update z
-            possible_z = z_state
-            ### Check to delete some subset of the loop
-            for ind_nonzero in nonzero_y_indices:
-                prob_z = np.zeros(9)
-                for ind_z in range(9):  ### Why 9 here? Times it rains/day
-                    possible_z[ind_nonzero] = ind_z + 1
-                    prob_z[ind_z] = loglikelihood_z(possible_z)
-                print(prob_z)
-                finite_indices = np.isfinite(prob_z)
-                prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
-                possible_z[ind_nonzero] = np.random.choice(a=np.arange(1, 10)[finite_indices],
-                                                           p=prob_z / np.sum(prob_z))
-            z_state = possible_z
-        except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
-            continue
-        break
-    print(str(ind_Gibbs)+'-st/th iteration successfully finished' )
-    # Add to stored samples
-    Theta.append(copy.deepcopy(theta_state))
-    Z.append(copy.deepcopy(z_state))
-    
-    # Shapes
-    # Theta -> (N_Gibbs, 38)
-    # Z -> (N_Gibbs, 365)
-
-    print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
-"""
-
-
-#np.savez('timeseries_samples', Z=Z, Theta=Theta)
-
-
-# plt.figure(figsize=(10, 8))
-# plt.plot(time, z_new, linestyle = '-', color = 'b')
-# plt.plot(time, Y, marker='+', linestyle='', color = 'black')
-# plt.fill_between(time, z_new-y_new, z_new+y_new)
-# plt.ylim(0, np.max(z_new+y_new)+1)
-
-
 #### Parallel Case
 
 def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
     possible_z[ind_non] = ind_z + 1
-    prob_z[ind_z] = loglikelihood_z(possible_z)[0]*np.random.poisson(loglikelihood_z(possible_z)[1])
+    #### This is wrong - include the prior in z inside the loglikelihood (final step)
+    prob_z[ind_z] = loglikelihood_z(possible_z) #[0]*np.log(np.random.poisson(loglikelihood_z(possible_z)[1]))
     return prob_z
 
 perc = 0.5
@@ -201,10 +142,10 @@ for ind_Gibbs in range(n_step_Gibbs):
             nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
             for ind_nonzero in nonzero_y:
                 prob_z = np.zeros(9)
-                prob_z = Parallel(n_jobs=4)(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z)\
+                prob_z = Parallel(n_jobs=4, prefer="threads")(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z)\
                        for ind_z in range(9))
                 prob_z = np.sum(prob_z, axis=0)
-                print(prob_z)
+                #print(prob_z)
                 finite_indices = np.isfinite(prob_z)
                 prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
                 possible_z[ind_nonzero] = np.random.choice(a=np.arange(1, 10)[finite_indices],
@@ -218,6 +159,6 @@ for ind_Gibbs in range(n_step_Gibbs):
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
     if extreme_case:
-        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)[0]))
+        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
     else:
-        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)[0]))
+        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))

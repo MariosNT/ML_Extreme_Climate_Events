@@ -23,8 +23,7 @@ def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.id
 
         #Compute and Define loglikelihood threshold
         u = np.random.random(size=(1,))
-        log_y = LHD(f)[0] + np.log(u)
-        #log_y = LHD(f) + np.log(u)
+        log_y = LHD(f) + np.log(u)
 
         ###### Initial proposal #####
         #Draw an initial proposal, also defining a bracket:
@@ -36,8 +35,7 @@ def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.id
 
         ##### While loop until gets accepted ####
         # Accept and Reject Step
-        while LHD(f_prime)[0] <= log_y:
-        #while LHD(f_prime) <= log_y:
+        while LHD(f_prime) <= log_y:
             if theta_ellipse < 0:
                 theta_ellipse_min = theta_ellipse
             else:
