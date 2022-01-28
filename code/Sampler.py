@@ -11,6 +11,10 @@ def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.id
     # Store initial value
     f_prime = f_0
     Samples.append(f_prime)
+    # print("n", n)
+    # print("Mean", Mean)
+    # print("Sigma", Sigma)
+    # print("f_0", f_0)
 
     for ind in range(n):
         f = f_prime

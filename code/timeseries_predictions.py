@@ -7,22 +7,32 @@ Code to analyse the timeseries predictions
 import numpy as np
 import matplotlib.pyplot as plt
 from timeseries_v3 import cptimeseries
+from timeseries_extreme import cptimeseries_extreme
 
 
 ### Importing observed data & model fields
 
 year = 2000 #For now, we're focusing on a single year
+extreme_case = False
+
 location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
 
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
 X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year))
 
 
+if extreme_case:
+    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Cardiff_extreme_'+str(year)+"_gs5000"+"\\"   
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs5000.npz".format(year))
+
+else:
+    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Cardiff_'+str(year)+"_gs10000"+"\\"
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs10000.npz".format(year))
+
+
 ### Importing timeseries of Z and Theta, after sampling
 # Z = number of times rain/day
 # Theta = parameters of the model (Eq. 10)
-
-data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}.npz".format(year))
 Z = data_set["Z"]
 Theta = data_set["Theta"]
 n_param = len(Theta.T)
@@ -32,19 +42,20 @@ n_days = len(Z.T)
 # Gibbs_steps = number of times the sampler was run
 sampling_steps = len(Z)
 Gibbs_steps = np.arange(sampling_steps)
-N_burn = 500
+N_burn = 8000
 
 def plot_Gibbs_samples(theta, n_burn=0):
     for i in range(n_param):
         plt.figure(figsize=(10, 8))
-        plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'b')
+        plt.plot(Gibbs_steps[:n_burn], theta[:n_burn,i], linestyle = '-', color = 'b')
+        plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'r')
         plt.title("Parameter {} for year {}".format(i+1, year))
         plt.show()
-        #plt.savefig(location+"parameteres_{}_Gsteps_{}.png".format(i+1, year))
-        plt.close()
+        # plt.savefig(imlocation+"parameteres_{}_Gsteps_{}.png".format(i+1, year))
+        # plt.close()
 
         
-#plot_Gibbs_samples(Theta, N_burn)
+plot_Gibbs_samples(Theta, N_burn)
 
 
 ### Making predictions
@@ -57,14 +68,23 @@ sampling_steps = len(Z)
 # This will save computation time for predictions
 z_pred = np.ones(Z.shape)
 y_pred = np.ones(Z.shape)
+l_t = np.ones(Z.shape)
+w_t = np.ones(Z.shape)
+mu_t = np.ones(Z.shape)
 
 # For the given model fields and sampled parameters, 
 # we make predictions of the amount of rainfall per day.
 # We discard nan values & re-predict for these
-for i in range(sampling_steps):
-    _, y_pred[i] = cptimeseries(Theta[i]).simulate(X)
-    while sum(np.isnan(y_pred[i])) != 0.0:
-        _, y_pred[i] = cptimeseries(Theta[i]).simulate(X)
+if extreme_case:
+    for i in range(sampling_steps):
+        _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries_extreme(Theta[i]).simulate(X)
+        while sum(np.isnan(y_pred[i])) != 0.0:
+            _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries_extreme(Theta[i]).simulate(X)    
+else:
+    for i in range(sampling_steps):
+        _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries(Theta[i]).simulate(X)
+        while sum(np.isnan(y_pred[i])) != 0.0:
+            _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries(Theta[i]).simulate(X)
         
     
 ### Summary statistics of predictions
@@ -86,18 +106,36 @@ y_max = np.max(y_pred, axis=0)
 time = np.arange(n_days)
 
 # Plot that uses the mean & std, as predicted value and error
-plt.figure(figsize=(10, 8))
-plt.plot(time, y_mean, linestyle = '-', color = 'b')
-plt.plot(time, Y, marker='+', linestyle='', color = 'black')
-plt.fill_between(time, y_mean-y_std, y_mean+y_std)
-plt.ylim(0, np.max(Y)+1)
-plt.title("Y mean - Year {}".format(year))
-plt.xlabel("Days")
-plt.ylabel("precipitation (mm)")
-plt.show()
-#plt.savefig(location+"precipitation_mean_{}.png".format(year))
-plt.close()    
+# plt.figure(figsize=(10, 8))
+# plt.plot(time, y_mean, linestyle = '-', color = 'b')
+# plt.plot(time, Y, marker='+', linestyle='', color = 'black')
+# plt.fill_between(time, y_mean-y_std, y_mean+y_std)
+# plt.ylim(0, np.max(Y)+1)
+# plt.title("Y mean - Year {}".format(year))
+# plt.xlabel("Days")
+# plt.ylabel("precipitation (mm)")
+# plt.show()
+# plt.savefig(location+"precipitation_mean_{}.png".format(year))
+# plt.close()    
 
+
+# n, bins, patches = plt.hist(np.log10(np.ravel(l_t)), 15, density=True, facecolor='g', alpha=0.75, label='l_t (log)')
+# plt.legend()
+# plt.show()
+# plt.savefig(imlocation+"lt_{}_Gsteps_{}.png".format(i+1, year))
+# plt.close()
+
+# n, bins, patches = plt.hist(np.log10(np.ravel(w_t)), 15, density=True, facecolor='g', alpha=0.75, label='w_t (log)')
+# plt.legend()
+# plt.show()
+# plt.savefig(imlocation+"wt_{}_Gsteps_{}.png".format(i+1, year))
+# plt.close()
+
+# n, bins, patches = plt.hist(np.log10(np.ravel(np.nan_to_num(mu_t))), 15, density=True, facecolor='g', alpha=0.75, label='mu_t (log)')
+# plt.legend()
+# #plt.show()
+# plt.savefig(imlocation+"mut_{}_Gsteps_{}.png".format(i+1, year))
+# plt.close()
 
 # Plot that uses the median & different quantiles, as predicted value and errors
 plt.figure(figsize=(10, 8))
@@ -111,8 +149,40 @@ plt.title("Y median - Year {}".format(year))
 plt.xlabel("Days")
 plt.ylabel("precipitation (mm)")
 plt.show()
-#plt.savefig(location+"precipitation_median_{}.png".format(year))
-plt.close()    
+# plt.savefig(imlocation+"precipitation_median_{}.png".format(year))
+# plt.close()    
+
+lt_median = np.quantile(l_t, 0.5, axis=0)
+lt_68 = np.quantile(l_t, 0.68, axis=0)
+lt_95 = np.quantile(l_t, 0.95, axis=0)
+wt_median = np.quantile(w_t, 0.5, axis=0)
+mut_median = np.quantile(np.nan_to_num(mu_t), 0.5, axis=0)
+
+plt.figure(figsize=(10, 8))
+plt.plot(time, lt_median, linestyle = '-', color = 'b')
+plt.fill_between(time, lt_median, lt_68, color='red')
+plt.fill_between(time, lt_median, lt_95, color='red', alpha=0.5)
+plt.xlabel("Days")
+plt.ylabel("l_t")
+# plt.show()
+# plt.savefig(imlocation+"lt_median_{}.png".format(year))
+# plt.close() 
+
+plt.figure(figsize=(10, 8))
+plt.plot(time, wt_median, linestyle = '-', color = 'b')
+plt.xlabel("Days")
+plt.ylabel("w_t")
+plt.show()
+# plt.savefig(imlocation+"wt_median_{}.png".format(year))
+# plt.close() 
+
+plt.figure(figsize=(10, 8))
+plt.plot(time, mut_median, linestyle = '-', color = 'b')
+plt.xlabel("Days")
+plt.ylabel("mu_t")
+plt.show()
+# plt.savefig(imlocation+"mut_median_{}.png".format(year))
+# plt.close() 
 
 
 
@@ -162,6 +232,8 @@ plt.plot(np.sort(rms_spread_mean), np.sort(rms_spread_mean), linestyle = '--', c
 plt.xlabel("RMS spread binned")
 plt.ylabel("RMS error binned")
 plt.show()
+# plt.savefig(imlocation+"spread-skill_{}.png".format(year))
+# plt.close()
 
 ###### Calculate RMSB error & MAB error
 # Here we only have 1 location, so S=1
@@ -185,25 +257,19 @@ plt.show()
 def true_false_positives(rain_thres, rain_obs, rain_pred, roc_thres):    
     bool_obs = rain_obs > rain_thres
     bool_pred = rain_pred > rain_thres
+    bool_new = np.sum(bool_pred, axis=0) >= roc_thres
     
-    TP = np.sum(bool_obs & bool_pred, axis=0)
-    FP = np.sum(np.invert(bool_obs) & bool_pred, axis=0)
-    TN = np.sum(np.invert(bool_obs) & np.invert(bool_pred), axis=0)
-    FN = np.sum(bool_obs & np.invert(bool_pred), axis=0)
+    TP = np.sum(bool_obs & bool_new)
+    FP = np.sum(np.invert(bool_obs) & bool_new)
+    TN = np.sum(np.invert(bool_obs) & np.invert(bool_new))
+    FN = np.sum(bool_obs & np.invert(bool_new))
     
-    ### Need to fix this part - does not count correctly the values
-    sample_size = np.shape(y_pred)[1]
-    TP_perc = np.sum(TP>=roc_thres)
-    FP_perc = np.sum(FP>=roc_thres) #/sample_size
-    TN_perc = np.sum(TN>=roc_thres) #/sample_size
-    FN_perc = np.sum(FN>=roc_thres) #/sample_size
-    
-    TPR = TP_perc/(TP_perc+FN_perc)
-    FPR = FP_perc/(FP_perc+TN_perc)
+    TPR = TP/(TP+FN)
+    FPR = FP/(FP+TN)
     
     return TPR, FPR
 
-def ROC_plot(rain_thres, rain_obs, rain_pred, roc_thres):
+def ROC_curves(rain_thres, rain_obs, rain_pred, roc_thres):
     true_positives = []
     false_positives = []
 
@@ -214,26 +280,43 @@ def ROC_plot(rain_thres, rain_obs, rain_pred, roc_thres):
 
     true_positives = np.array(true_positives)
     false_positives = np.array(false_positives)
-    AUC = np.round(np.abs(np.trapz(true_positives, false_positives)), 3)    
+    AUC = np.round(np.abs(np.trapz(true_positives, false_positives)), 3)      
+    
+    return true_positives, false_positives, AUC
 
+def ROC_plot(tpr_array, fpr_array, auc_array, rains): 
     plt.figure(figsize=(10, 8))
-    plt.plot(false_positives, true_positives, linestyle = '--', color = 'black')
-    plt.plot(false_positives, false_positives, linestyle = '-', color = 'black')
+    linestyles = ['-', '--', '-.', ':']
+    colors = ['blue', 'magenta', 'red', 'green']
+    
+    # plot diagonal line
+    x_values = np.linspace(0, 1, 10)
+    plt.plot(x_values, x_values, linestyle = '-', color = 'black')
+    
+    for i in range(len(tpr_array)):
+        plt.plot(fpr_array[i], tpr_array[i], linestyle = linestyles[i],\
+                 marker = 'x', color = colors[i], alpha=0.3,\
+                 label= "AUC = {}".format(auc_array[i]) + " RT = {} mm".format(rains[i]))
+            
     plt.xlabel("FPR")
     plt.ylabel("TPR")
-    plt.title("AUC = {}".format(AUC))
+    plt.legend()
     plt.show()
-    #plt.savefig(location+"ROC_{}.png".format(year))
-    plt.close()    
+    # plt.savefig(imlocation+"ROC_{}.png".format(year))
+    # plt.close()  
     
-    return true_positives, false_positives
-    
-thresholds = np.arange(0, 50, 5)
+thresholds = np.union1d(np.arange(0, 10, 1), np.arange(20, sampling_steps//2, 30))
 
-Tpr, Fpr = ROC_plot(5, Y, y_pred, thresholds)
+Tpr0, Fpr0, auc0 = ROC_curves(0, Y, y_pred, thresholds)
+Tpr5, Fpr5, auc5 = ROC_curves(5, Y, y_pred, thresholds)
+Tpr15, Fpr15, auc15 = ROC_curves(15, Y, y_pred, thresholds)
+Tpr25, Fpr25, auc25 = ROC_curves(25, Y, y_pred, thresholds)
 
 
-"""
+rains = [0, 5, 15, 25]
+ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains)
+
+
 ### Calculate probability of precipitation
 # How many days we predict rainfall above a threshold
 # Compare with observed values
@@ -283,12 +366,11 @@ plt.plot(rain_thresholds, rain_probability_samples_day, marker = 'x', linestyle 
 plt.xlabel("Rain thresholds [x (mm)]")
 plt.ylabel("Probability [rain>x]")
 plt.legend()
-plt.show()
-#plt.savefig(location+"precipitation_prob_{}.png".format(year))
-plt.close()    
+# plt.show()
+# plt.savefig(imlocation+"precipitation_prob_{}.png".format(year))
+# plt.close()    
 
 ### Plotting residuals
 # plt.figure(figsize=(10, 8))
 # plt.plot(time, y_mean-Y, linestyle = '-', color = 'b')
 # plt.show()
-"""

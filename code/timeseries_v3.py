@@ -8,7 +8,7 @@ Created on Tue Jan 11 13:32:56 2022
 import copy
 
 import numpy as np
-from scipy.stats import gamma, multivariate_normal
+from scipy.stats import gamma, multivariate_normal, poisson
 import pylab as plt
 from Sampler import EllipticalSliceSampling
 import sys
@@ -18,6 +18,7 @@ from joblib import Parallel, delayed
 
 class cptimeseries():
     def __init__(self, theta, k=6, p=5):
+        # Loading the priors
         self.beta_lambda = theta[:k,]
         self.beta_mu = theta[k:2*k,]
         self.beta_omega = theta[2*k:3*k,]
@@ -32,16 +33,20 @@ class cptimeseries():
         num_model_field, T = X.shape[1], X.shape[0]
         XX = np.concatenate((np.ones(shape=(T, 1)), X), axis=1) #Adds a column of 1s at the beginning of X
         # Only linear regression term
-        omega_t = np.exp(np.dot(XX, self.beta_omega)) #Eq. 60 - k=0
-        lambda_t = np.exp(np.dot(XX, self.beta_lambda)) #Eq. 58 - Φ, Γ, k=0
-        mu_t = np.exp(np.dot(XX, self.beta_mu)) #Eq. 59 - Φ, Γ, k=0
+        # For k values, see paper p.5 & Gibbs_sampling.py
+        # Shapes of ω, λ, μ = len(days)
+        omega_t = np.exp(np.dot(XX, self.beta_omega)) #Eq. 60 - k = the constant term multiplied by 1
+        lambda_t = np.exp(np.dot(XX, self.beta_lambda)) #Eq. 58 - Φ, Γ = 0
+        mu_t = np.exp(np.dot(XX, self.beta_mu)) #Eq. 59 - Φ, Γ = 0
         # Add ARMA term
         z_t, y_t = np.zeros(shape=(T, )), np.zeros(shape=(T, )) #Rows of T zeros
-        for ind_t in range(T): # We loop for all values of model fields
+        for ind_t in range(T): # We loop for all days
+        # The ARMA terms are needed for day>1
             if ind_t == 0:
                 # Simulate z_t
                 z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
                 # Simulate y_t - Eq. 4, 31, 32
+                # Zero can only come if λ is zero
                 if z_t[ind_t] == 0:
                     y_t[ind_t] = 0
                 else:
@@ -59,7 +64,7 @@ class cptimeseries():
                 num = np.nan_to_num(y_t[ind_t - (min(ind_t, 5)):ind_t] - (z_t[ind_t - (min(ind_t, 5)):ind_t] *
                        mu_t[ind_t - (min(ind_t, 5)):ind_t]))
                 deno = np.nan_to_num(mu_t[ind_t - (min(ind_t,5)):ind_t] *
-                       np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t] ))
+                       np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
                 MA_comp = np.sum(self.gamma_mu[-min(ind_t, 5):][z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]
                                  * (num[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0] / deno[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]))
                 mu_t[ind_t] = np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
@@ -68,9 +73,9 @@ class cptimeseries():
                 if z_t[ind_t] == 0:
                     y_t[ind_t] = 0
                 else:
-                    y_t[ind_t] = np.random.gamma(shape= z_t[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))
+                    y_t[ind_t] = np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))
 
-        return z_t, y_t
+        return z_t, y_t, lambda_t, omega_t, mu_t
 
     def loglikelihood(self, z, y, X):
 
@@ -118,8 +123,9 @@ class cptimeseries():
                     #print('mu_t :' +str(mu_t[ind_t]))
 
                 ################ Compute likelihood
-                if y[ind_t] > 0 and z[ind_t]>0:
-                    llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))
+                if y[ind_t] > 0 and z[ind_t]>0 and lambda_t[ind_t]>0:
+                    llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))+\
+                        np.log(poisson.rvs(lambda_t[ind_t])+1)
                 elif y[ind_t] == 0 and z[ind_t] == 0:
                     llhd += - lambda_t[ind_t]
             if np.isnan(llhd):

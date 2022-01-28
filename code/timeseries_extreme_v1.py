@@ -10,16 +10,22 @@ from joblib import Parallel, delayed
 
 #X = np.random.normal(size=(100, 2), loc=1, scale=1)
 # Model fields
-X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff.npy')
-# Calculating transpose such that each row corresponds for a day
-X = np.transpose(X)
-# Calculating windspeed and consider that as avraible
-X = np.concatenate((X[:,[0,3,4,5]],np.sqrt(pow(X[:,1],2)+pow(X[:,2],2)).reshape(-1,1)), axis=1)
-# Standardize data (making each column having 0 mean and stdev 1)
-X -= np.mean(X, axis=0)
-X /= np.std(X, axis=0)
-# Rain fall
-Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\rainfall_Cardiff_1979.npy')
+# X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff.npy')
+# # Calculating transpose such that each row corresponds for a day
+# X = np.transpose(X)
+# # Calculating windspeed and consider that as avraible
+# X = np.concatenate((X[:,[0,3,4,5]],np.sqrt(pow(X[:,1],2)+pow(X[:,2],2)).reshape(-1,1)), axis=1)
+# # Standardize data (making each column having 0 mean and stdev 1)
+# X -= np.mean(X, axis=0)
+# X /= np.std(X, axis=0)
+# # Rain fall
+# Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\rainfall_Cardiff_1979.npy')
+
+year = 2000 #For now, we're focusing on a single year
+
+Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year))
+
 print(Y.shape)
 
 
@@ -258,19 +264,41 @@ Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30,)), (1/(1.3*65))*np.on
 # print(cptimeseries_extreme(true_theta).loglikelihood(z, y, X))
 
 # number of steps Gibbs we want to use
-n_step_Gibbs = 2
+n_step_Gibbs = 1
 
 ### Lists to store the samples
 Theta, Z = [], []
 
 # Extract zero/non-zero indices of y
-zero_y_indices = [i for i, e in enumerate(Y) if e == 0] #"Maybe faster with numpy boolean, but maybe this way useful for later"
-nonzero_y_indices = [i for i, e in enumerate(Y) if e != 0]
+en = np.arange(len(Y))
+bool_y_zero = (Y==0)
+
+zero_y_indices = en[bool_y_zero]
+nonzero_y_indices = en[np.invert(bool_y_zero)]
 
 ## Lets first initialize theta and z for a Markov chain ##
+
+#### For non-zero y, get distribution of rainfalls and calculate quantiles
+#### Then use this to initialise z (1, 2, 3, 4), based on the quantiles
+y_non_zero = Y[Y>0]
+edge1 = np.quantile(y_non_zero, 0.25)
+edge2 = np.quantile(y_non_zero, 0.5)
+edge3 = np.quantile(y_non_zero, 0.75)
+edge4 = np.max(Y)
+
+bin_2 = (edge1<=Y) & (Y<=edge2)
+bin_3 = (edge2<Y) & (Y<=edge3)
+bin_4 = (edge3<Y) & (Y<=edge4)
+
 z_state = np.ones(shape=Y.shape)
+z_state[bin_2] = 2
+z_state[bin_3] = 3
+z_state[bin_4] = 4
+
 z_state[zero_y_indices] = 0 #z_state an array of 0, 1
 theta_state = theta_0
+
+
 # Add to stored samples
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
@@ -279,6 +307,10 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
     possible_z[ind_non] = ind_z + 1
     prob_z[ind_z] = loglikelihood_z(possible_z)
     return prob_z
+
+
+perc = 0.5
+
 
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
@@ -299,7 +331,8 @@ for ind_Gibbs in range(n_step_Gibbs):
             loglikelihood_z = lambda z: cptimeseries_extreme(theta_state).loglikelihood(z, Y, X)
             # Sample/Update z
             possible_z = z_state
-            for ind_nonzero in nonzero_y_indices:
+            nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
+            for ind_nonzero in nonzero_y:
                 prob_z = np.zeros(9)
                 prob_z = Parallel(n_jobs=4)(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z)\
                            for ind_z in range(9))
