@@ -124,8 +124,8 @@ class cptimeseries():
 
                 ################ Compute likelihood
                 if y[ind_t] > 0 and z[ind_t]>0 and lambda_t[ind_t]>0:
-                    llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))+\
-                        np.log(poisson.rvs(lambda_t[ind_t])+1)
+                    llhd += gamma.logpdf(y[ind_t], a = z[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))-\
+                        lambda_t[ind_t]
                 elif y[ind_t] == 0 and z[ind_t] == 0:
                     llhd += - lambda_t[ind_t]
             if np.isnan(llhd):
