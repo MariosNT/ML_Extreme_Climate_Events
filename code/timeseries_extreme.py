@@ -181,12 +181,12 @@ class cptimeseries_extreme():
 
                 if y[ind_t] > 0 and z[ind_t] > 0:
                     if y[ind_t] <= u_t[ind_t]:
-                        llhd += gamma.logpdf(y[ind_t], a=z_t[ind_t]/omega_t[ind_t], scale= 1/(omega_t[ind_t] * mu_t[ind_t]))+\
-                            np.log(poisson.rvs(lambda_t[ind_t])+1)
+                        llhd += gamma.logpdf(y[ind_t], a=z_t[ind_t]/omega_t[ind_t], scale= 1/(omega_t[ind_t] * mu_t[ind_t]))-\
+                            lambda_t[ind_t]
                     else:
                         llhd += np.log(1-C_t[ind_t]) + genpareto.logpdf(y[ind_t],
-                                                        c=eta_t[ind_t], loc=u_t[ind_t], scale=sigma_t[ind_t])+\
-                            np.log(poisson.rvs(lambda_t[ind_t])+1)
+                                                        c=eta_t[ind_t], loc=u_t[ind_t], scale=sigma_t[ind_t])-\
+                            lambda_t[ind_t]
                 elif y[ind_t] == 0 and z[ind_t] == 0:
                     llhd += - lambda_t[ind_t]
             if np.isnan(llhd):
