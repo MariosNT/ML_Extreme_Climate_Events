@@ -3,7 +3,7 @@ Improved sampling code
 """
 
 import copy
-
+from scipy.stats import invgamma as invgamma
 import numpy as np
 from scipy.stats import gamma, multivariate_normal
 import pylab as plt
@@ -51,6 +51,7 @@ else:
 
     Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(18,)), (1/(1.3*65))*np.ones(shape=(20,)))))
 
+print(np.diag(Sigma_0).shape)
 
 #### Simulated data
 if extreme_case:
@@ -60,14 +61,13 @@ else:
     z, y, lambda_t, _, _ = cptimeseries(true_theta).simulate(X)
     print(cptimeseries(true_theta).loglikelihood(z, y, X))
 
-
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
 
 # number of steps Gibbs we want to use
 n_step_Gibbs = 1
 
 ### Lists to store the samples
-Theta, Z = [], []
+Theta, Z, Lambda, Nu, Tau, Eta = [], [], [], [], [], []
 
 # Extract zero/non-zero indices of y
 en = np.arange(len(Y))
@@ -97,10 +97,20 @@ z_state[bin_4] = 4
 
 z_state[zero_y_indices] = 0 #z_state an array of 0, 1
 theta_state = theta_0
+lambda_square_array_state = np.diag(Sigma_0)
+nu_array_state = invgamma.rvs(a=1, scale=1 + (1 / lambda_square_array_state))
+eta_state = invgamma.rvs(a=0.5, scale=1)
+tau_square_state = invgamma.rvs(a=((lambda_square_array_state.shape[0] + 1) / 2),
+                                scale=(1 / eta_state + 0.5 * (
+                                    np.sum(np.power(theta_state, 2) / (lambda_square_array_state)))))
 
 # Add to stored samples
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
+Lambda.append(copy.deepcopy(lambda_square_array_state))
+Nu.append(copy.deepcopy(nu_array_state))
+Tau.append(copy.deepcopy(tau_square_state))
+Eta.append(copy.deepcopy(eta_state))
 
 #### Parallel Case
 
@@ -112,14 +122,19 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
 
 perc = 0.5
 
-
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
+    ##### Copy the present state of the variables to sample .. ####
     theta_state = copy.deepcopy(Theta[-1])
     z_state = copy.deepcopy(Z[-1])
+    lambda_square_array_state = copy.deepcopy(Lambda[-1])
+    nu_array_state = copy.deepcopy(Nu[-1])
+    tau_square_state = copy.deepcopy(Tau[-1])
+    eta_state = copy.deepcopy(Eta[-1])
+    Sigma_0 = np.diag(lambda_square_array_state * tau_square_state)
     while True:
         try:
-            #### First sample theta using Elliptic Slice Sampler ###
+            #### Step 1: Sample theta using Elliptic Slice Sampler ####
             if extreme_case:
                 # define conditional likelihood for theta
                 loglikelihood_theta = lambda theta: cptimeseries_extreme(theta).loglikelihood(z_state, Y, X)
@@ -142,7 +157,7 @@ for ind_Gibbs in range(n_step_Gibbs):
                 theta_state = Samples[-1]
                 # define conditional likelihood for z
                 loglikelihood_z = lambda z: cptimeseries(theta_state).loglikelihood(z, Y, X)
-            # Sample/Update z
+            # Step 2: Sample/Update z
             possible_z = z_state
             nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
             for ind_nonzero in nonzero_y:
@@ -159,10 +174,25 @@ for ind_Gibbs in range(n_step_Gibbs):
         except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
             continue
         break
+    #### Step 3: Sample lambda_aray ###
+    lambda_square_array_state = invgamma.rvs(a=np.ones(shape=lambda_square_array_state),
+                                             scale=(1 / nu_array_state) + (theta_state ^ 2) / (2 * tau_square_state))
+    #### Step 4: Sample tau  ###
+    tau_square_state = invgamma.rvs(a=((lambda_square_array_state.shape[0] + 1) / 2),
+                                    scale=(1 / eta_state + 0.5 * (
+                                        np.sum(np.power(theta_state, 2) / (lambda_square_array_state)))))
+    #### Step 5: Sample nu_array ###
+    nu_array_state = invgamma.rvs(a=1, scale=1 + (1 / lambda_square_array_state))
+    #### Step 6: Sample eta ###
+    eta_state = invgamma.rvs(a=1, scale=1 + (1 / tau_square_state))
     print(str(ind_Gibbs)+'-st/th iteration successfully finished' )
     # Add to stored samples
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
+    Lambda.append(copy.deepcopy(lambda_square_array_state))
+    Nu.append(copy.deepcopy(nu_array_state))
+    Tau.append(copy.deepcopy(tau_square_state))
+    Eta.append(copy.deepcopy(eta_state))
     if extreme_case:
         print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
     else:
