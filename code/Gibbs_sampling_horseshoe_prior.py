@@ -1,5 +1,5 @@
 """
-Improved sampling code
+Improved sampling code, with horseshoe prior
 """
 
 import copy
@@ -120,7 +120,8 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
     prob_z[ind_z] = loglikelihood_z(possible_z) #[0]*np.log(np.random.poisson(loglikelihood_z(possible_z)[1]))
     return prob_z
 
-perc = 0.5
+perc = 0.1
+
 
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
@@ -175,8 +176,8 @@ for ind_Gibbs in range(n_step_Gibbs):
             continue
         break
     #### Step 3: Sample lambda_aray ###
-    lambda_square_array_state = invgamma.rvs(a=np.ones(shape=lambda_square_array_state),
-                                             scale=(1 / nu_array_state) + (theta_state ^ 2) / (2 * tau_square_state))
+    lambda_square_array_state = invgamma.rvs(a=np.ones(lambda_square_array_state.shape[0]),
+                                             scale=(1 / nu_array_state) + (theta_state ** 2) / (2 * tau_square_state))
     #### Step 4: Sample tau  ###
     tau_square_state = invgamma.rvs(a=((lambda_square_array_state.shape[0] + 1) / 2),
                                     scale=(1 / eta_state + 0.5 * (
