@@ -121,10 +121,15 @@ for ind_Gibbs in range(n_step_Gibbs):
         try:
             #### First sample theta using Elliptic Slice Sampler ###
             if extreme_case:
+                # define conditional likelihood for theta
                 loglikelihood_theta = lambda theta: cptimeseries_extreme(theta).loglikelihood(z_state, Y, X)
+                # Sample/Update theta
+                ## Here Mean and Sigma are the mean and var-cov matrix of Multivariate normal used as the prior.
+                ## f_0 defines the present state of the Markov chain
                 Samples = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=theta_0, Sigma=Sigma_0,
                                                   f_0=theta_state)
                 theta_state = Samples[-1]
+                # define conditional likelihood for z
                 loglikelihood_z = lambda z: cptimeseries_extreme(theta_state).loglikelihood(z, Y, X)
             else:
                 # define conditional likelihood for theta
