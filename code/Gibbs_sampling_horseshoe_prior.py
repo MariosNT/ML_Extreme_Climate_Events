@@ -122,6 +122,7 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
 
 perc = 0.1
 
+
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
     ##### Copy the present state of the variables to sample .. ####
