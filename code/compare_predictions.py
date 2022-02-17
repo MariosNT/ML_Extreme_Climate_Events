@@ -13,24 +13,24 @@ from timeseries_extreme import cptimeseries_extreme
 ### Importing observed data & model fields
 
 year = 1 #For now, we're focusing on a single year
-year_predict = 2000
+year_predict = 1
 
 gs = 30000
 N_burn = 29000
 
-savefig = True
+savefig = False
 
 
 #location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
 
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year_predict))
-X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year_predict))
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year_predict))
 
 
-data_set_ext = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs{}.npz".format(year, gs))
-data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs{}.npz".format(year, gs))
+data_set_ext = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs{}_Z1_wv.npz".format(year, gs))
+data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs{}_Z1_wv.npz".format(year, gs))
 
-imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Cardiff_comparison_'+str(year)+"_pred{}_gs{}".format(year_predict, gs)+"\\"   
+imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Comparison\\Cardiff_comparison_'+str(year)+"_pred{}_gs{}_wv".format(year_predict, gs)+"\\"   
 
 ### Importing timeseries of Z and Theta, after sampling
 # Z = number of times rain/day

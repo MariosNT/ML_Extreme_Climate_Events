@@ -17,7 +17,7 @@ from joblib import Parallel, delayed
 
 
 class cptimeseries():
-    def __init__(self, theta, k=6, p=5):
+    def __init__(self, theta, k=7, p=5):
         # Loading the priors
         self.beta_lambda = theta[:k,]
         self.beta_mu = theta[k:2*k,]
@@ -58,6 +58,10 @@ class cptimeseries():
                                          + np.sum(self.gamma_lambda[-min(ind_t, 5):] *\
                                         ((z_t[ind_t - (min(ind_t, 5)):ind_t] - lambda_t[ind_t - (min(ind_t, 5)):ind_t]) /\
                                          np.sqrt(lambda_t[ind_t - (min(ind_t, 5)):ind_t]))))
+                # if lambda_t[ind_t] > 10**9:
+                #     lambda_t[ind_t] = 10**9
+                # elif np.isnan(lambda_t[ind_t]):
+                #     lambda_t[ind_t] = 0
                 # Simulate z_t
                 z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
                 # Calculate mu_t
@@ -65,15 +69,15 @@ class cptimeseries():
                        mu_t[ind_t - (min(ind_t, 5)):ind_t]))
                 deno = np.nan_to_num(mu_t[ind_t - (min(ind_t,5)):ind_t] *
                        np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
-                MA_comp = np.sum(self.gamma_mu[-min(ind_t, 5):][z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]
-                                 * (num[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0] / deno[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]))
-                mu_t[ind_t] = np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
-                                    (np.log(mu_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_mu[0])) + MA_comp)
+                MA_comp = np.nan_to_num(np.sum(self.gamma_mu[-min(ind_t, 5):][z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]
+                                 * (num[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0] / deno[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0])))
+                mu_t[ind_t] = np.nan_to_num(np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
+                                    (np.log(mu_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_mu[0])) + MA_comp))
                 # Simulate y_t
                 if z_t[ind_t] == 0:
                     y_t[ind_t] = 0
                 else:
-                    y_t[ind_t] = np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t]))
+                    y_t[ind_t] = np.nan_to_num(np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t])))
 
         return z_t, y_t, lambda_t, omega_t, mu_t
 

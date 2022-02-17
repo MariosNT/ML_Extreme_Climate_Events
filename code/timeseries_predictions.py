@@ -13,26 +13,26 @@ from timeseries_extreme import cptimeseries_extreme
 ### Importing observed data & model fields
 
 year = 1 #For now, we're focusing on a single year
-year_predict = 2000
+year_predict = 1
 gs = 30000
 N_burn = 29000
 
 
-extreme_case = False
+extreme_case = True
 savefig = True
 
 
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year_predict))
-X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year_predict))
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year_predict))
 
 
 if extreme_case:
-    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Cardiff_extreme_'+str(year)+"_pred{}_gs{}".format(year_predict,gs)+"\\"   
-    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs{}.npz".format(year, gs))
+    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Extreme\\Cardiff_extreme_'+str(year)+"_pred{}_gs{}_wv".format(year_predict,gs)+"\\"   
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs{}_Z1_wv.npz".format(year, gs))
 
 else:
-    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Cardiff_'+str(year)+"_pred{}_gs{}".format(year_predict,gs)+"\\"   
-    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs{}.npz".format(year, gs))
+    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Standard\\Cardiff_'+str(year)+"_pred{}_gs{}_wv".format(year_predict,gs)+"\\"   
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs{}_Z1_wv.npz".format(year, gs))
 
 
 ### Importing timeseries of Z and Theta, after sampling
@@ -322,14 +322,14 @@ def ROC_plot(tpr_array, fpr_array, auc_array, rains):
 thresholds = np.union1d(np.arange(0, 550, 1), np.arange(550, 850, 5))
 thresholds = np.union1d(thresholds, np.arange(850, sampling_steps, 100))
 
-# Tpr0, Fpr0, auc0 = ROC_curves(0, Y, y_pred, thresholds)
-# Tpr5, Fpr5, auc5 = ROC_curves(5, Y, y_pred, thresholds)
-# Tpr15, Fpr15, auc15 = ROC_curves(15, Y, y_pred, thresholds)
-# Tpr25, Fpr25, auc25 = ROC_curves(25, Y, y_pred, thresholds)
+Tpr0, Fpr0, auc0 = ROC_curves(0, Y, y_pred, thresholds)
+Tpr5, Fpr5, auc5 = ROC_curves(5, Y, y_pred, thresholds)
+Tpr15, Fpr15, auc15 = ROC_curves(15, Y, y_pred, thresholds)
+Tpr25, Fpr25, auc25 = ROC_curves(25, Y, y_pred, thresholds)
 
 
-# rains = [0, 5, 15, 25]
-# ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains)
+rains = [0, 5, 15, 25]
+ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains)
 
 
 ### Calculate probability of precipitation
@@ -364,25 +364,25 @@ rain_probability_pred_95 = []
 rain_probability_samples = []
 rain_probability_samples_day = []
 
-# for rain in rain_thresholds:
-#     rain_probability_obs.append(precipitation_above_x(rain, Y))
+for rain in rain_thresholds:
+    rain_probability_obs.append(precipitation_above_x(rain, Y))
 #     rain_probability_pred.append(precipitation_above_x(rain, y_median))
 #     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
-#     rain_probability_samples.append(precipitation_above_x(rain, y_pred))
-#     rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
+    rain_probability_samples.append(precipitation_above_x(rain, y_pred))
+    # rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
 
     
-# plt.figure(figsize=(10, 8))
-# plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs.")
+plt.figure(figsize=(10, 8))
+plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs.")
 # plt.plot(rain_thresholds, rain_probability_pred, linestyle = '-', color = 'black', label = "Pred.")
 # plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'black', label = "Pred. 95")
-# plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
+plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
 # plt.plot(rain_thresholds, rain_probability_samples_day, marker = 'x', linestyle = ' ', color = 'black', label = "Pred. Samples/Day")
-# plt.xlabel("Rain thresholds [x (mm)]")
-# plt.ylabel("Probability [rain>x]")
-# plt.legend()
-# if savefig:
-#     plt.savefig(imlocation+"precipitation_prob_comparison_{}.png".format(year))
-#     plt.close()
-# else:
-#     plt.show()   
+plt.xlabel("Rain thresholds [x (mm)]")
+plt.ylabel("Probability [rain>x]")
+plt.legend()
+if savefig:
+    plt.savefig(imlocation+"precipitation_prob_comparison_{}.png".format(year))
+    plt.close()
+else:
+    plt.show()   

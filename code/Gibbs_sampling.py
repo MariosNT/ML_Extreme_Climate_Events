@@ -13,13 +13,13 @@ from timeseries_extreme import cptimeseries_extreme
 import sys
 from joblib import Parallel, delayed
 
-year = 2000 #For now, we're focusing on a single year
+year = 1 #For now, we're focusing on a single year
 extreme_case = True
 
 location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
 
 # Model fields
-X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year))
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year))
 # Rain fall
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
 print(Y.shape)
@@ -28,19 +28,19 @@ print(Y.shape)
 
 ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
 if extreme_case:
-    theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0], np.zeros(shape=(32,))))
+    theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0, 0], np.zeros(shape=(35,))))
     true_theta = theta_0
-    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30,)), (1/(1.3*65))*np.ones(shape=(20,)))))
+    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(33,)), (1/(1.3*65))*np.ones(shape=(23,)))))
 
 else:
-    theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0], np.zeros(shape=(20,))))
+    theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0, 0], np.zeros(shape=(20,))))
     
     ## Realistic priors ##
     # Sampling from prior to define a true_theta
     
-    beta_lambda, beta_mu, beta_omega = np.random.normal(size=(6,), loc=[-0.46, 0, 0, 0, 0, 0], scale=1/6), \
-                                       np.random.normal(size=(6,), loc=[1.44, 0, 0, 0, 0, 0], scale=1/6), \
-                                       np.random.normal(size=(6,), loc=[-0.45, 0, 0, 0, 0, 0], scale=1/6)
+    beta_lambda, beta_mu, beta_omega = np.random.normal(size=(7,), loc=[-0.46, 0, 0, 0, 0, 0, 0], scale=1/6), \
+                                       np.random.normal(size=(7,), loc=[1.44, 0, 0, 0, 0, 0, 0], scale=1/6), \
+                                       np.random.normal(size=(7,), loc=[-0.45, 0, 0, 0, 0, 0, 0], scale=1/6)
     phi_lambda, phi_mu, gamma_lambda, gamma_mu = np.random.normal(size=(5,), scale=1/(1.3*65)),\
                                                  np.random.normal(size=(5,), scale=1/(1.3*65)),\
                                                  np.random.normal(size=(5,), scale=1/(1.3*65)),\
@@ -49,7 +49,7 @@ else:
     for array in [beta_lambda, beta_mu, beta_omega, phi_lambda, phi_mu, gamma_lambda, gamma_mu]:
         true_theta = np.concatenate([true_theta, array])
 
-    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(18,)), (1/(1.3*65))*np.ones(shape=(20,)))))
+    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(21,)), (1/(1.3*65))*np.ones(shape=(20,)))))
 
 
 #### Simulated data
