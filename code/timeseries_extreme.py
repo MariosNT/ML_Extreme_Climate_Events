@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 
 
 class cptimeseries_extreme():
-    def __init__(self, theta, k=7, p=5):
+    def __init__(self, theta, k=6, p=5):
         self.beta_lambda = theta[:k,]
         self.beta_mu = theta[k:2*k,]
         self.beta_omega = theta[2*k:3*k,]

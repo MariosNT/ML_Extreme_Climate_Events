@@ -14,12 +14,26 @@ import sys
 from joblib import Parallel, delayed
 
 year = 1 #For now, we're focusing on a single year
-extreme_case = True
+extreme_case = False
 
 location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
 
 # Model fields
-X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year))
+multiple = True
+
+if multiple:
+    X1 = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year))
+    X2 = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_hum.npy'.format(year))
+
+    X2 = X2[:,5].reshape(len(X2),1)
+
+    X = np.hstack([X1, X2])
+    
+else:
+    X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year))
+
+x_size = X.shape[1]+1
+
 # Rain fall
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
 print(Y.shape)
@@ -27,20 +41,23 @@ print(Y.shape)
 
 
 ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
+diff = x_size-6
 if extreme_case:
-    theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0, 0], np.zeros(shape=(35,))))
-    true_theta = theta_0
-    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(33,)), (1/(1.3*65))*np.ones(shape=(23,)))))
+    true_theta = np.concatenate(([-0.46, 0, 0, 0, 0, 0], np.zeros(diff), [1.44, 0, 0, 0, 0, 0], np.zeros(diff),\
+                                 [-0.45, 0, 0, 0, 0, 0], np.zeros(diff), np.zeros(shape=(32+diff*3,))))
+    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30+diff*3,)), (1/(1.3*65))*np.ones(shape=(20+diff*3,)))))
 
-else:
-    theta_0 = np.concatenate(([-0.46, 0, 0, 0, 0, 0, 0, 1.44, 0, 0, 0, 0, 0, 0, -0.45, 0, 0, 0, 0, 0, 0], np.zeros(shape=(20,))))
-    
+else:   
     ## Realistic priors ##
     # Sampling from prior to define a true_theta
+    loc1 = np.concatenate(([-0.46, 0, 0, 0, 0, 0,], np.zeros(diff)))
+    loc2 = np.concatenate(([1.44, 0, 0, 0, 0, 0,], np.zeros(diff)))
+    loc3 = np.concatenate(([-0.45, 0, 0, 0, 0, 0,], np.zeros(diff)))
     
-    beta_lambda, beta_mu, beta_omega = np.random.normal(size=(7,), loc=[-0.46, 0, 0, 0, 0, 0, 0], scale=1/6), \
-                                       np.random.normal(size=(7,), loc=[1.44, 0, 0, 0, 0, 0, 0], scale=1/6), \
-                                       np.random.normal(size=(7,), loc=[-0.45, 0, 0, 0, 0, 0, 0], scale=1/6)
+    
+    beta_lambda, beta_mu, beta_omega = np.random.normal(size=(x_size,), loc=loc1, scale=1/6), \
+                                       np.random.normal(size=(x_size,), loc=loc2, scale=1/6), \
+                                       np.random.normal(size=(x_size,), loc=loc3, scale=1/6)
     phi_lambda, phi_mu, gamma_lambda, gamma_mu = np.random.normal(size=(5,), scale=1/(1.3*65)),\
                                                  np.random.normal(size=(5,), scale=1/(1.3*65)),\
                                                  np.random.normal(size=(5,), scale=1/(1.3*65)),\
@@ -49,16 +66,16 @@ else:
     for array in [beta_lambda, beta_mu, beta_omega, phi_lambda, phi_mu, gamma_lambda, gamma_mu]:
         true_theta = np.concatenate([true_theta, array])
 
-    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(21,)), (1/(1.3*65))*np.ones(shape=(20,)))))
+    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(18+diff*3,)), (1/(1.3*65))*np.ones(shape=(20,)))))
 
 
 #### Simulated data
 if extreme_case:
-    z, y, lambda_t, _, _ = cptimeseries_extreme(true_theta).simulate(X)
-    print(cptimeseries_extreme(true_theta).loglikelihood(z, y, X))
+    z, y, lambda_t, _, _ = cptimeseries_extreme(true_theta, k=x_size).simulate(X)
+    print(cptimeseries_extreme(true_theta, k=x_size).loglikelihood(z, y, X))
 else:
-    z, y, lambda_t, _, _ = cptimeseries(true_theta).simulate(X)
-    print(cptimeseries(true_theta).loglikelihood(z, y, X))
+    z, y, lambda_t, _, _ = cptimeseries(true_theta, k=x_size).simulate(X)
+    print(cptimeseries(true_theta, k=x_size).loglikelihood(z, y, X))
 
 
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
@@ -96,7 +113,7 @@ z_state[bin_3] = 3
 z_state[bin_4] = 4
 
 z_state[zero_y_indices] = 0 #z_state an array of 0, 1
-theta_state = theta_0
+theta_state = true_theta
 
 # Add to stored samples
 Theta.append(copy.deepcopy(theta_state))
@@ -110,7 +127,7 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
     prob_z[ind_z] = loglikelihood_z(possible_z) #[0]*np.log(np.random.poisson(loglikelihood_z(possible_z)[1]))
     return prob_z
 
-perc = 0.5
+perc = 0.1
 
 
 for ind_Gibbs in range(n_step_Gibbs):
@@ -122,26 +139,26 @@ for ind_Gibbs in range(n_step_Gibbs):
             #### First sample theta using Elliptic Slice Sampler ###
             if extreme_case:
                 # define conditional likelihood for theta
-                loglikelihood_theta = lambda theta: cptimeseries_extreme(theta).loglikelihood(z_state, Y, X)
+                loglikelihood_theta = lambda theta: cptimeseries_extreme(theta, k=x_size).loglikelihood(z_state, Y, X)
                 # Sample/Update theta
                 ## Here Mean and Sigma are the mean and var-cov matrix of Multivariate normal used as the prior.
                 ## f_0 defines the present state of the Markov chain
-                Samples = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=theta_0, Sigma=Sigma_0,
+                Samples = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=true_theta, Sigma=Sigma_0,
                                                   f_0=theta_state)
                 theta_state = Samples[-1]
                 # define conditional likelihood for z
-                loglikelihood_z = lambda z: cptimeseries_extreme(theta_state).loglikelihood(z, Y, X)
+                loglikelihood_z = lambda z: cptimeseries_extreme(theta_state, k=x_size).loglikelihood(z, Y, X)
             else:
                 # define conditional likelihood for theta
-                loglikelihood_theta = lambda theta: cptimeseries(theta).loglikelihood(z_state, Y, X)
+                loglikelihood_theta = lambda theta: cptimeseries(theta, k=x_size).loglikelihood(z_state, Y, X)
                 # Sample/Update theta
                 ## Here Mean and Sigma are the mean and var-cov matrix of Multivariate normal used as the prior.
                 ## f_0 defines the present state of the Markov chain
-                Samples = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=theta_0, Sigma=Sigma_0,
+                Samples = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=true_theta, Sigma=Sigma_0,
                                                   f_0=theta_state)
                 theta_state = Samples[-1]
                 # define conditional likelihood for z
-                loglikelihood_z = lambda z: cptimeseries(theta_state).loglikelihood(z, Y, X)
+                loglikelihood_z = lambda z: cptimeseries(theta_state, k=x_size).loglikelihood(z, Y, X)
             # Sample/Update z
             possible_z = z_state
             nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
@@ -164,6 +181,6 @@ for ind_Gibbs in range(n_step_Gibbs):
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
     if extreme_case:
-        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
+        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs], k=x_size).loglikelihood(Z[ind_Gibbs],Y, X)))
     else:
-        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs]).loglikelihood(Z[ind_Gibbs],Y, X)))
+        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs], k=x_size).loglikelihood(Z[ind_Gibbs],Y, X)))

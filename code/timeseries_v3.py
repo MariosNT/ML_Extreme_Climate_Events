@@ -17,7 +17,7 @@ from joblib import Parallel, delayed
 
 
 class cptimeseries():
-    def __init__(self, theta, k=7, p=5):
+    def __init__(self, theta, k=8, p=5):
         # Loading the priors
         self.beta_lambda = theta[:k,]
         self.beta_mu = theta[k:2*k,]

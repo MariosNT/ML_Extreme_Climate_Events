@@ -13,7 +13,7 @@ from timeseries_extreme import cptimeseries_extreme
 ### Importing observed data & model fields
 
 year = 1 #For now, we're focusing on a single year
-year_predict = 1
+year_predict = "2000_2003"
 gs = 30000
 N_burn = 29000
 
@@ -23,16 +23,17 @@ savefig = True
 
 
 Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year_predict))
-X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year_predict))
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}.npy'.format(year_predict))
 
+x_size = X.shape[1]+1
 
 if extreme_case:
-    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Extreme\\Cardiff_extreme_'+str(year)+"_pred{}_gs{}_wv".format(year_predict,gs)+"\\"   
-    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs{}_Z1_wv.npz".format(year, gs))
+    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Extreme\\Cardiff_extreme_'+str(year)+"_pred{}_gs{}".format(year_predict,gs)+"\\"   
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_{}_gs{}.npz".format(year, gs))
 
 else:
-    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Standard\\Cardiff_'+str(year)+"_pred{}_gs{}_wv".format(year_predict,gs)+"\\"   
-    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs{}_Z1_wv.npz".format(year, gs))
+    imlocation = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Images\\Standard\\Cardiff_'+str(year)+"_pred{}_gs{}".format(year_predict,gs)+"\\"   
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_Cardiff_{}_gs{}.npz".format(year, gs))
 
 
 ### Importing timeseries of Z and Theta, after sampling
@@ -83,14 +84,14 @@ mu_t = np.ones((sampling_steps, len(X)))
 # We discard nan values & re-predict for these
 if extreme_case:
     for i in range(sampling_steps):
-        _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries_extreme(Theta[i]).simulate(X)
+        _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries_extreme(Theta[i], k=x_size).simulate(X)
         while sum(np.isnan(y_pred[i])) != 0.0:
-            _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries_extreme(Theta[i]).simulate(X)    
+            _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries_extreme(Theta[i], k=x_size).simulate(X)    
 else:
     for i in range(sampling_steps):
-        _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries(Theta[i]).simulate(X)
+        _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries(Theta[i], k=x_size).simulate(X)
         while sum(np.isnan(y_pred[i])) != 0.0:
-            _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries(Theta[i]).simulate(X)
+            _, y_pred[i], l_t[i], w_t[i], mu_t[i] = cptimeseries(Theta[i], k=x_size).simulate(X)
         
     
 ### Summary statistics of predictions
@@ -155,6 +156,30 @@ plt.xlabel("Days")
 plt.ylabel("precipitation (mm)")
 if savefig:
     plt.savefig(imlocation+"precipitation_median_{}.png".format(year))
+    plt.close()
+else:
+    plt.show()   
+    
+
+# Scatter plot between observables and predictions
+plt.figure(figsize=(10, 8))
+
+# plot diagonal line
+x_values = np.linspace(0, np.max(np.log10(Y+1)), 10)
+plt.plot(x_values, x_values, linestyle = '--', color = 'black')
+
+# Simple linear fit
+z = np.polyfit(Y, y_95, 1)
+p = np.poly1d(z)
+
+plt.scatter(np.log10(Y+1), np.log10(y_95+1), alpha=0.8, marker='x')
+plt.plot(np.log10(np.sort(Y)+1), np.log10(p(np.sort(Y))+1), linestyle = '--', alpha=0.8, color='r')
+plt.ylim(-0.05, np.max(np.log10(Y+1)))
+plt.title("Y_obs - Y_95 Log plot - Year {}".format(year))
+plt.ylabel("Prediction (median)")
+plt.xlabel("Observations")
+if savefig:
+    plt.savefig(imlocation+"scatter_median_{}.png".format(year))
     plt.close()
 else:
     plt.show()   
