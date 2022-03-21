@@ -1,7 +1,7 @@
 import copy
 
 import numpy as np
-from scipy.stats import gamma, multivariate_normal, genpareto, poisson
+from scipy.stats import gamma, multivariate_normal, genpareto
 from scipy import optimize
 import pylab as plt
 from Sampler import EllipticalSliceSampling

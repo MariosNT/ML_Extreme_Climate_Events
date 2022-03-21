@@ -12,61 +12,67 @@ from timeseries_v3 import cptimeseries
 from timeseries_extreme import cptimeseries_extreme
 import sys
 from joblib import Parallel, delayed
+from timeit import default_timer as timer
 
-year = 1 #For now, we're focusing on a single year
-extreme_case = False
+year_training = 2000 
+year_predict = "2001"
+year_start = 2000
+year_end = 2000
+gs = 30000  # Gibbs_steps = number of times the sampler was run
 
-location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year)+"\\"
+extreme_case = True
+resampling = False
+
+location = 'C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\code\\images\\year_'+str(year_training)+"\\"
 
 # Model fields
-multiple = True
-
-if multiple:
-    X1 = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year))
-    X2 = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_hum.npy'.format(year))
-
-    X2 = X2[:,5].reshape(len(X2),1)
-
-    X = np.hstack([X1, X2])
-    
-else:
-    X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_{}_wv.npy'.format(year))
+X = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\model_fields_Cardiff_1.npy')
 
 x_size = X.shape[1]+1
+diff = x_size-6
+
 
 # Rain fall
-Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(year))
+Y = np.load('C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\Rainfall_Cardiff_{}.npy'.format(1))
 print(Y.shape)
 
-
-
 ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
-diff = x_size-6
-if extreme_case:
-    true_theta = np.concatenate(([-0.46, 0, 0, 0, 0, 0], np.zeros(diff), [1.44, 0, 0, 0, 0, 0], np.zeros(diff),\
-                                 [-0.45, 0, 0, 0, 0, 0], np.zeros(diff), np.zeros(shape=(32+diff*3,))))
-    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30+diff*3,)), (1/(1.3*65))*np.ones(shape=(20+diff*3,)))))
 
-else:   
-    ## Realistic priors ##
-    # Sampling from prior to define a true_theta
-    loc1 = np.concatenate(([-0.46, 0, 0, 0, 0, 0,], np.zeros(diff)))
-    loc2 = np.concatenate(([1.44, 0, 0, 0, 0, 0,], np.zeros(diff)))
-    loc3 = np.concatenate(([-0.45, 0, 0, 0, 0, 0,], np.zeros(diff)))
+# Resampling
+if resampling:
+    data_set = np.load("C:\\Users\\klera\\Documents\\GitHub\\ML_Extreme_Climate_Events\\Data\\Data\\timeseries_extreme_Cardiff_1_gs{}.npz".format(gs))
+    Theta_par = data_set["Theta"]
+    Zeta_par = data_set["Z"]
+    Initial_steps = Theta_par.shape[0]
+    true_theta = Theta_par[-1]
+    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30+diff*3,)), (1/(1.3*65))*np.ones(shape=(20+diff*3,)))))   
+else:
+    Initial_steps = 0
+    if extreme_case:
+        true_theta = np.concatenate(([-0.46, 0, 0, 0, 0, 0], np.zeros(diff), [1.44, 0, 0, 0, 0, 0], np.zeros(diff),\
+                                     [-0.45, 0, 0, 0, 0, 0], np.zeros(diff), np.zeros(shape=(32+diff*3,))))
+        Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(30+diff*3,)), (1/(1.3*65))*np.ones(shape=(20+diff*3,)))))
     
+    else:   
+        ## Realistic priors ##
+        # Sampling from prior to define a true_theta
+        loc1 = np.concatenate(([-0.46, 0, 0, 0, 0, 0,], np.zeros(diff)))
+        loc2 = np.concatenate(([1.44, 0, 0, 0, 0, 0,], np.zeros(diff)))
+        loc3 = np.concatenate(([-0.45, 0, 0, 0, 0, 0,], np.zeros(diff)))
+        
+        
+        beta_lambda, beta_mu, beta_omega = np.random.normal(size=(x_size,), loc=loc1, scale=1/6), \
+                                           np.random.normal(size=(x_size,), loc=loc2, scale=1/6), \
+                                           np.random.normal(size=(x_size,), loc=loc3, scale=1/6)
+        phi_lambda, phi_mu, gamma_lambda, gamma_mu = np.random.normal(size=(5,), scale=1/(1.3*65)),\
+                                                     np.random.normal(size=(5,), scale=1/(1.3*65)),\
+                                                     np.random.normal(size=(5,), scale=1/(1.3*65)),\
+                                                     np.random.normal(size=(5,), scale=1/(1.3*65))
+        true_theta = np.array([])
+        for array in [beta_lambda, beta_mu, beta_omega, phi_lambda, phi_mu, gamma_lambda, gamma_mu]:
+            true_theta = np.concatenate([true_theta, array])
     
-    beta_lambda, beta_mu, beta_omega = np.random.normal(size=(x_size,), loc=loc1, scale=1/6), \
-                                       np.random.normal(size=(x_size,), loc=loc2, scale=1/6), \
-                                       np.random.normal(size=(x_size,), loc=loc3, scale=1/6)
-    phi_lambda, phi_mu, gamma_lambda, gamma_mu = np.random.normal(size=(5,), scale=1/(1.3*65)),\
-                                                 np.random.normal(size=(5,), scale=1/(1.3*65)),\
-                                                 np.random.normal(size=(5,), scale=1/(1.3*65)),\
-                                                 np.random.normal(size=(5,), scale=1/(1.3*65))
-    true_theta = np.array([])
-    for array in [beta_lambda, beta_mu, beta_omega, phi_lambda, phi_mu, gamma_lambda, gamma_mu]:
-        true_theta = np.concatenate([true_theta, array])
-
-    Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(18+diff*3,)), (1/(1.3*65))*np.ones(shape=(20,)))))
+        Sigma_0 = np.diag(np.concatenate(((1/6)*np.ones(shape=(18+diff*3,)), (1/(1.3*65))*np.ones(shape=(20,)))))
 
 
 #### Simulated data
@@ -119,16 +125,16 @@ theta_state = true_theta
 Theta.append(copy.deepcopy(theta_state))
 Z.append(copy.deepcopy(z_state))
 
+
 #### Parallel Case
 
 def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z):
     possible_z[ind_non] = ind_z + 1
-    #### This is wrong - include the prior in z inside the loglikelihood (final step)
-    prob_z[ind_z] = loglikelihood_z(possible_z) #[0]*np.log(np.random.poisson(loglikelihood_z(possible_z)[1]))
+    prob_z[ind_z] = loglikelihood_z(possible_z) 
     return prob_z
 
 perc = 0.1
-
+start = timer()
 
 for ind_Gibbs in range(n_step_Gibbs):
     #print(ind_Gibbs)
@@ -161,7 +167,8 @@ for ind_Gibbs in range(n_step_Gibbs):
                 loglikelihood_z = lambda z: cptimeseries(theta_state, k=x_size).loglikelihood(z, Y, X)
             # Sample/Update z
             possible_z = z_state
-            nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
+            #nonzero_y = np.random.choice(nonzero_y_indices, size=int(perc*len(nonzero_y_indices)))
+            nonzero_y = np.random.choice(nonzero_y_indices, size=1)
             for ind_nonzero in nonzero_y:
                 prob_z = np.zeros(9)
                 prob_z = Parallel(n_jobs=4, prefer="threads")(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z)\
@@ -176,11 +183,21 @@ for ind_Gibbs in range(n_step_Gibbs):
         except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
             continue
         break
-    print(str(ind_Gibbs)+'-st/th iteration successfully finished' )
+    print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished' )
     # Add to stored samples
     Theta.append(copy.deepcopy(theta_state))
     Z.append(copy.deepcopy(z_state))
     if extreme_case:
-        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs], k=x_size).loglikelihood(Z[ind_Gibbs],Y, X)))
+        print(str(ind_Gibbs+Initial_steps)+'-st/th sample LogLikeliHood: '+str(cptimeseries_extreme(Theta[ind_Gibbs], k=x_size).loglikelihood(Z[ind_Gibbs],Y, X)))
     else:
-        print(str(ind_Gibbs)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs], k=x_size).loglikelihood(Z[ind_Gibbs],Y, X)))
+        print(str(ind_Gibbs+Initial_steps)+'-st/th sample LogLikeliHood: '+str(cptimeseries(Theta[ind_Gibbs], k=x_size).loglikelihood(Z[ind_Gibbs],Y, X)))
+
+if resampling:
+    Theta = np.array(Theta)
+    Theta = np.vstack([Theta_par, Theta])
+    Z = np.array(Z)
+    Z = np.vstack([Zeta_par, Z])
+
+end = timer()
+print()
+print("Total time:", end-start)
