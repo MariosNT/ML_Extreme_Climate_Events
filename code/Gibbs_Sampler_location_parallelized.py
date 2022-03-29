@@ -10,8 +10,8 @@ from scipy.stats import gamma, multivariate_normal
 from parallel.backends import BackendMPI as Backend
 backend = Backend()
 # number of steps Gibbs we want to use
-n_step_Gibbs = 100
-extreme_case = True
+n_step_Gibbs = 10000
+extreme_case = False
 
 if extreme_case:
     from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -192,17 +192,20 @@ for ind_Gibbs in range(n_step_Gibbs):
             if prob_z[ind_opt] < -1e+4:
                 finite_indices[ind_opt] = False
         prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
-        possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 7)[finite_indices],p=prob_z / np.sum(prob_z))
-        return possible_z, ind
+        prob_z = prob_z / np.sum(prob_z)
+        if sum(np.isnan(prob_z)) == 0:
+            possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 7)[finite_indices], p=prob_z)
+            return possible_z
+        else:
+            return z_bds.value()[ind,:]
     sample_z_pds = backend.map(sample_z, ind_pds)
-    accepted_zs_ind = backend.collect(sample_z_pds)
-    accepted_zs, index_z = [list(t) for t in zip(*accepted_zs_ind)]
+    accepted_zs = np.array(backend.collect(sample_z_pds))
     ## Sampling of z is finished
 
     print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished' )
     # Add to stored samples
     Theta.append(copy.deepcopy(theta_state))
-    Z_list.append(copy.deepcopy(np.array(accepted_zs)))
+    Z_list.append(copy.deepcopy(accepted_zs))
     lhd_list.append(lhd_f_prime)
     print(str(ind_Gibbs+Initial_steps)+'-st/th sample LogLikeliHood: '+str(lhd_f_prime))
 
