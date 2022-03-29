@@ -27,8 +27,27 @@ class cptimeseries():
         self.gamma_lambda = theta[3*k+2*p:3*k+3*p,]
         self.gamma_mu = theta[3*k+3*p:,]
 
-
     def simulate(self, X):
+        n_X = X.shape[0]
+        Y = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Z = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Lambda = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Omega = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Mu = np.zeros(shape=(X.shape[0], X.shape[1]))
+        for ind in range(n_X):
+            z_t, y_t, lambda_t, omega_t, mu_t = self._simulate_one(np.squeeze(X[ind,:,:]))
+            Y[ind, :], Z[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
+        return Z, Y, Lambda, Omega, Mu
+
+    def loglikelihood(self, Z, Y, X):
+        n_X = X.shape[0]
+        lld = 0
+        for ind in range(n_X):
+            lld = lld + self._loglikelihood_one(Z[ind,:], Y[ind, :], np.squeeze(X[ind, :, :]))
+        return lld
+
+
+    def _simulate_one(self, X):
 
         num_model_field, T = X.shape[1], X.shape[0]
         XX = np.concatenate((np.ones(shape=(T, 1)), X), axis=1) #Adds a column of 1s at the beginning of X
@@ -81,7 +100,7 @@ class cptimeseries():
 
         return z_t, y_t, lambda_t, omega_t, mu_t
 
-    def loglikelihood(self, z, y, X):
+    def _loglikelihood_one(self, z, y, X):
 
         num_model_field, T = X.shape[1], X.shape[0]
         XX = np.concatenate((np.ones(shape=(T, 1)), X), axis=1)

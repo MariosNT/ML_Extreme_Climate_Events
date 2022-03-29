@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.stats import gamma, multivariate_normal
 
-##### Lets first sample theta using Elliptical Slice Sampling ####
-
 def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.identity(29), f_0=np.zeros(shape=(29,))):
 ##### Implemented using the Murray et. al. Elliptical Slice Sampling (http://proceedings.mlr.press/v9/murray10a/murray10a.pdf)
 # Figure 2 ####

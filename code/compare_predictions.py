@@ -6,8 +6,8 @@ Code to analyse the timeseries predictions
 
 import numpy as np
 import matplotlib.pyplot as plt
-from timeseries_v3 import cptimeseries
-from timeseries_extreme import cptimeseries_extreme
+from timeseries_cp import cptimeseries
+from timeseries_cp_extreme import cptimeseries_extreme
 
 
 ### Importing observed data & model fields
