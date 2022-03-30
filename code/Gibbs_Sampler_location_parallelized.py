@@ -3,15 +3,15 @@ import copy
 import os.path
 import pylab as plt
 from Sampler import EllipticalSliceSampling
-from scipy.stats import gamma, multivariate_normal
+from scipy.stats import gamma, multivariate_normal, poisson
 # For purely serial computing
 #from parallel.backends import BackendDummy as Backend
 # For MPI parallelized computing
 from parallel.backends import BackendMPI as Backend
 backend = Backend()
 # number of steps Gibbs we want to use
-n_step_Gibbs = 10000
-extreme_case = False
+n_step_Gibbs = 100
+extreme_case = True
 
 if extreme_case:
     from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -25,11 +25,11 @@ else:
     filename = 'PostSample_'+year + '_cp.npz'
 
 # Read Model fields
-X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')
+X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')[:3,:,:]
 x_size = X.shape[-1]+1
 diff = x_size-6
 # Read Rain fall
-Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')
+Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')[:3,:]
 # Broadcast Model Fields and Rainfall to workers
 X_bds = backend.broadcast(X)
 y_bds = backend.broadcast(Y)
@@ -182,18 +182,20 @@ for ind_Gibbs in range(n_step_Gibbs):
     def sample_z(ind):
         loglikelihood_z = lambda z: model(theta_state, k=x_size)._loglikelihood_one(z, y_bds.value()[ind,:], np.squeeze(X_bds.value()[ind,:,:]))
         possible_z = z_bds.value()[ind,:]
+        lambda_t = model(theta_state, k=x_size)._compute_lambda_one(possible_z, y_bds.value()[ind,:], np.squeeze(X_bds.value()[ind,:,:]))
         nonzero_y = np.random.choice(Non_Zero_indices[ind], size=1)
+        lambda_t_nonzero_y = lambda_t[nonzero_y]
         prob_z = np.zeros(6)
         finite_indices = [True for ind in range(6)]
         for ind_opt in range(6):
             possible_z[nonzero_y] = ind_opt + 1
-            prob_z[ind_opt] = loglikelihood_z(possible_z)
+            prob_z[ind_opt] = loglikelihood_z(possible_z) + poisson.logpmf(ind_opt + 1, lambda_t_nonzero_y) # Add poisson hierarchical prior
             # The following threshold is arbitrarily chosen to asses whether it has diveregd or not
             if prob_z[ind_opt] < -1e+4:
                 finite_indices[ind_opt] = False
         prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
         prob_z = prob_z / np.sum(prob_z)
-        if sum(np.isnan(prob_z)) == 0:
+        if sum(np.isnan(prob_z)) == 0 or np.size(prob_z)==0:
             possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 7)[finite_indices], p=prob_z)
             return possible_z
         else:

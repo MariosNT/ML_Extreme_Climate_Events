@@ -213,3 +213,31 @@ class cptimeseries_extreme():
         else:
             final = -np.inf
         return final
+
+    def _compute_lambda_one(self, z, y, X):
+        num_model_field, T = X.shape[1], X.shape[0]
+
+        XX = np.concatenate((np.ones(shape=(T, 1)), X), axis=1)
+        # Only linear regression term
+        lambda_t = np.exp(np.dot(XX, self.beta_lambda))
+        # Add ARMA term
+        z_t, y_t = z, y
+        for ind_t in range(T):
+            ####### Loop over data for every timepoint ########
+            #print(ind_t)
+            if ind_t > 0:
+                ########### Update lambda_t and mu_t if ind_t > 0 -- Add ARMA term #############
+                #### nonzero zs
+                nonzero_z = z_t[ind_t - (min(ind_t, 5)):ind_t] != 0
+                #### Update lambda_t
+                num = z_t[ind_t - (min(ind_t, 5)):ind_t] - lambda_t[ind_t - (min(ind_t, 5)):ind_t]
+                deno = np.sqrt(lambda_t[ind_t - (min(ind_t, 5)):ind_t])
+                MA_comp = np.sum(self.gamma_lambda[-min(ind_t, 5):][nonzero_z] * (num[nonzero_z] / deno[nonzero_z]) )
+                # update lambda_t
+                lambda_t[ind_t] = np.exp(np.log(lambda_t[ind_t]) + \
+                                         np.sum(self.phi_lambda[-min(ind_t, 5):] * (
+                                                 np.log(lambda_t[ind_t - (min(ind_t, 5)):ind_t])
+                                                 - self.beta_lambda[0])) \
+                                         + MA_comp
+                                         )
+        return lambda_t
