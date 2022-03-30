@@ -197,7 +197,7 @@ for ind_Gibbs in range(n_step_Gibbs):
                 finite_indices[ind_opt] = False
         prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
         prob_z = prob_z / np.sum(prob_z)
-        if sum(np.isnan(prob_z)) == 0 or np.size(prob_z)==0:
+        if (sum(np.isnan(prob_z)) == 0) + (np.size(prob_z)!=0) == 2:
             possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 7)[finite_indices], p=prob_z)
             return possible_z
         else:
