@@ -11,7 +11,7 @@ from parallel.backends import BackendMPI as Backend
 backend = Backend()
 # number of steps Gibbs we want to use
 n_step_Gibbs = 100
-extreme_case = True
+extreme_case = False
 
 if extreme_case:
     from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -65,10 +65,12 @@ else:
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
 ######################################## Initialization ########################################
 if os.path.isfile(filename):
+    print('Hello')
     Theta = list(np.load(filename)['Theta'])
     Z_list = list(np.load(filename)['Z'])
     lhd_list = list(np.load(filename)['lhd_list'])
     Initial_steps = len(Theta)
+    print(Initial_steps)
     Non_Zero_indices = []
     for ind in range(Y.shape[0]):
         y_tmp = Y[ind,:]
@@ -214,6 +216,8 @@ for ind_Gibbs in range(n_step_Gibbs):
     if np.mod(ind_Gibbs, 100) == 0:
         ## Save the posterior samples
         np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+
+np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
 plt.figure()
 plt.plot(lhd_list)
