@@ -64,9 +64,7 @@ def plot_Gibbs_samples(theta, theta_ext, n_burn=0):
         else:
             plt.show()
 
-        
 plot_Gibbs_samples(Theta, Theta_ext, N_burn)
-
 
 ### Making predictions
 # y_pred = amount of rainfall (mm)

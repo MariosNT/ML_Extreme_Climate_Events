@@ -1,6 +1,5 @@
 import numpy as np
-import copy
-import os.path
+import copy, time, os.path
 import pylab as plt
 from Sampler import EllipticalSliceSampling
 from scipy.stats import gamma, multivariate_normal, poisson
@@ -10,8 +9,9 @@ from scipy.stats import gamma, multivariate_normal, poisson
 from parallel.backends import BackendMPI as Backend
 backend = Backend()
 # number of steps Gibbs we want to use
-n_step_Gibbs = 100
-extreme_case = False
+n_step_Gibbs = 1000
+n_sample_z = 10
+extreme_case = True
 
 if extreme_case:
     from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -25,14 +25,16 @@ else:
     filename = 'PostSample_'+year + '_cp.npz'
 
 # Read Model fields
-X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')[:3,:,:]
+X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')[:7,:,:]
 x_size = X.shape[-1]+1
 diff = x_size-6
 # Read Rain fall
-Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')[:3,:]
+Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')[:7,:]
 # Broadcast Model Fields and Rainfall to workers
 X_bds = backend.broadcast(X)
 y_bds = backend.broadcast(Y)
+
+t0 = time.time()
 
 ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
 # Define prior hyperparmeters
@@ -81,6 +83,7 @@ if os.path.isfile(filename):
         nonzero_y_indices = en[np.invert(bool_y_zero)]
         # store the nonzero indces
         Non_Zero_indices.append(nonzero_y_indices)
+        n_sample_z = max(n_sample_z, len(nonzero_y_indices))
 else:
     Initial_steps = 0
     ### Lists to store the samples
@@ -99,6 +102,7 @@ else:
         nonzero_y_indices = en[np.invert(bool_y_zero)]
         # store the nonzero indces
         Non_Zero_indices.append(nonzero_y_indices)
+        n_sample_z = max(n_sample_z, len(nonzero_y_indices))
         ## Lets first initialize theta and z for a Markov chain ##
         #### For non-zero y, get distribution of rainfalls and calculate quantiles
         #### Then use this to initialise z (1, 2, 3, 4), based on the quantiles
@@ -123,12 +127,14 @@ else:
     Theta.append(copy.deepcopy(theta_state))
     Z_list.append(copy.deepcopy(Z_state))
 
+n_sample_z = n_sample_z * (.05)
+n_sample_z = int(n_sample_z)
+print(n_sample_z)
 ################################################################################
 ######################################## Sampling ########################################
 for ind_Gibbs in range(n_step_Gibbs):
     theta_state = copy.deepcopy(Theta[-1])
-    Z_state = copy.deepcopy(Z_list[-1])
-    #broadcast Z_state
+    Z_state = copy.deepcopy(Z_list[-1])    #broadcast Z_state
     z_bds = backend.broadcast(Z_state)
 
     #define parallelized conditional LHD of theta fixing z
@@ -179,8 +185,6 @@ for ind_Gibbs in range(n_step_Gibbs):
     # Sample/Update of z
     # Define conditional likelihood for z
     # Define parallelized conditional LHD of z fixing theta
-    ind_arr = np.array([ind for ind in range(Z_state.shape[0])])
-    ind_pds = backend.parallelize(ind_arr)
     def sample_z(ind):
         loglikelihood_z = lambda z: model(theta_state, k=x_size)._loglikelihood_one(z, y_bds.value()[ind,:], np.squeeze(X_bds.value()[ind,:,:]))
         possible_z = z_bds.value()[ind,:]
@@ -193,7 +197,8 @@ for ind_Gibbs in range(n_step_Gibbs):
             possible_z[nonzero_y] = ind_opt + 1
             prob_z[ind_opt] = loglikelihood_z(possible_z) + poisson.logpmf(ind_opt + 1, lambda_t_nonzero_y) # Add poisson hierarchical prior
             # The following threshold is arbitrarily chosen to asses whether it has diveregd or not
-            if prob_z[ind_opt] < -1e+4:
+        for ind_opt in range(6):
+            if prob_z[ind_opt] < np.mean(prob_z)-np.var(prob_z):
                 finite_indices[ind_opt] = False
         prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
         prob_z = prob_z / np.sum(prob_z)
@@ -202,8 +207,12 @@ for ind_Gibbs in range(n_step_Gibbs):
             return possible_z
         else:
             return z_bds.value()[ind,:]
-    sample_z_pds = backend.map(sample_z, ind_pds)
-    accepted_zs = np.array(backend.collect(sample_z_pds))
+    for ind_z_repeat in range(n_sample_z):
+        ind_arr = np.array([ind for ind in range(Z_state.shape[0])])
+        ind_pds = backend.parallelize(ind_arr)
+        sample_z_pds = backend.map(sample_z, ind_pds)
+        accepted_zs = np.array(backend.collect(sample_z_pds))
+        z_bds = backend.broadcast(accepted_zs)
     ## Sampling of z is finished
 
     print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished' )
@@ -219,7 +228,7 @@ for ind_Gibbs in range(n_step_Gibbs):
 
 np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
+print(time.time()-t0)
 plt.figure()
 plt.plot(lhd_list)
 plt.show()
-plt.close()
