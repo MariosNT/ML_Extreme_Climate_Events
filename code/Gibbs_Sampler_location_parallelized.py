@@ -11,7 +11,7 @@ backend = Backend()
 # number of steps Gibbs we want to use
 n_step_Gibbs = 10000
 n_sample_z = 10
-extreme_case = True
+extreme_case = False
 
 if extreme_case:
     from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -25,11 +25,11 @@ else:
     filename = 'PostSample_'+year + '_cp.npz'
 
 # Read Model fields
-X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')[:7,:,:]
+X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')
 x_size = X.shape[-1]+1
 diff = x_size-6
 # Read Rain fall
-Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')[:7,:]
+Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')
 # Broadcast Model Fields and Rainfall to workers
 X_bds = backend.broadcast(X)
 y_bds = backend.broadcast(Y)
@@ -212,14 +212,18 @@ for ind_Gibbs in range(n_step_Gibbs):
             final_z = possible_z
         else:
             final_z = z_bds.value()[ind,:]
-        #print(final_z)
         return final_z
     for ind_z_repeat in range(n_sample_z):
-        ind_arr = np.array([ind for ind in range(Z_state.shape[0])])
-        ind_pds = backend.parallelize(ind_arr)
-        sample_z_pds = backend.map(sample_z, ind_pds)
-        accepted_zs = np.array(backend.collect(sample_z_pds))
-        z_bds = backend.broadcast(accepted_zs)
+        while True:
+            try:
+                ind_arr = np.array([ind for ind in range(Z_state.shape[0])])
+                ind_pds = backend.parallelize(ind_arr)
+                sample_z_pds = backend.map(sample_z, ind_pds)
+                accepted_zs = np.array(backend.collect(sample_z_pds))
+                z_bds = backend.broadcast(accepted_zs)
+            except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
+                continue
+            break
     ## Sampling of z is finished
 
     print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished' )
