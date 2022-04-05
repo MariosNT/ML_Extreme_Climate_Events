@@ -9,7 +9,7 @@ from scipy.stats import gamma, multivariate_normal, poisson
 from parallel.backends import BackendMPI as Backend
 backend = Backend()
 # number of steps Gibbs we want to use
-n_step_Gibbs = 1000
+n_step_Gibbs = 10000
 n_sample_z = 10
 extreme_case = True
 
@@ -67,12 +67,10 @@ else:
 #### Now we want to implment a Gibbs sample where we update theta and z one after another
 ######################################## Initialization ########################################
 if os.path.isfile(filename):
-    print('Hello')
     Theta = list(np.load(filename)['Theta'])
     Z_list = list(np.load(filename)['Z'])
     lhd_list = list(np.load(filename)['lhd_list'])
     Initial_steps = len(Theta)
-    print(Initial_steps)
     Non_Zero_indices = []
     for ind in range(Y.shape[0]):
         y_tmp = Y[ind,:]
@@ -129,12 +127,13 @@ else:
 
 n_sample_z = n_sample_z * (.05)
 n_sample_z = int(n_sample_z)
-print(n_sample_z)
 ################################################################################
 ######################################## Sampling ########################################
+#plt.figure()
 for ind_Gibbs in range(n_step_Gibbs):
     theta_state = copy.deepcopy(Theta[-1])
     Z_state = copy.deepcopy(Z_list[-1])    #broadcast Z_state
+    #print(Z_state)
     z_bds = backend.broadcast(Z_state)
 
     #define parallelized conditional LHD of theta fixing z
@@ -187,26 +186,34 @@ for ind_Gibbs in range(n_step_Gibbs):
     # Define parallelized conditional LHD of z fixing theta
     def sample_z(ind):
         loglikelihood_z = lambda z: model(theta_state, k=x_size)._loglikelihood_one(z, y_bds.value()[ind,:], np.squeeze(X_bds.value()[ind,:,:]))
-        possible_z = z_bds.value()[ind,:]
+        possible_z = copy.deepcopy(z_bds.value()[ind,:])
         lambda_t = model(theta_state, k=x_size)._compute_lambda_one(possible_z, y_bds.value()[ind,:], np.squeeze(X_bds.value()[ind,:,:]))
         nonzero_y = np.random.choice(Non_Zero_indices[ind], size=1)
         lambda_t_nonzero_y = lambda_t[nonzero_y]
         prob_z = np.zeros(6)
-        finite_indices = [True for ind in range(6)]
         for ind_opt in range(6):
             possible_z[nonzero_y] = ind_opt + 1
             prob_z[ind_opt] = loglikelihood_z(possible_z) + poisson.logpmf(ind_opt + 1, lambda_t_nonzero_y) # Add poisson hierarchical prior
-            # The following threshold is arbitrarily chosen to asses whether it has diveregd or not
-        for ind_opt in range(6):
-            if prob_z[ind_opt] < np.mean(prob_z)-np.var(prob_z):
-                finite_indices[ind_opt] = False
+        finite_indices = list(np.where(np.isfinite(prob_z))[0])
+        #print(finite_indices)
+        for ind in range(6):
+            if np.isfinite(prob_z[ind]):
+                if np.abs(prob_z[ind] - np.min(prob_z[finite_indices])) > 600:
+                    finite_indices.remove(ind)
+        #print(finite_indices)
+        #print('Hello')
+        #print(prob_z)
         prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
+        #print(prob_z)
         prob_z = prob_z / np.sum(prob_z)
-        if (sum(np.isnan(prob_z)) == 0) + (np.size(prob_z)!=0) == 2:
+        #print(prob_z)
+        if int(sum(np.isnan(prob_z)) == 0) + int(np.size(prob_z) != 0) == 2:
             possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 7)[finite_indices], p=prob_z)
-            return possible_z
+            final_z = possible_z
         else:
-            return z_bds.value()[ind,:]
+            final_z = z_bds.value()[ind,:]
+        #print(final_z)
+        return final_z
     for ind_z_repeat in range(n_sample_z):
         ind_arr = np.array([ind for ind in range(Z_state.shape[0])])
         ind_pds = backend.parallelize(ind_arr)
@@ -228,7 +235,8 @@ for ind_Gibbs in range(n_step_Gibbs):
 
 np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
-print(time.time()-t0)
+
+# print(time.time()-t0)
 plt.figure()
 plt.plot(lhd_list)
 plt.show()
