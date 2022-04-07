@@ -9,9 +9,9 @@ from scipy.stats import gamma, multivariate_normal, poisson
 from parallel.backends import BackendMPI as Backend
 backend = Backend()
 # number of steps Gibbs we want to use
-n_step_Gibbs = 10000
+n_step_Gibbs = 50000
 n_sample_z = 10
-extreme_case = False
+extreme_case = True
 
 if extreme_case:
     from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -25,16 +25,16 @@ else:
     filename = 'PostSample_'+year + '_cp.npz'
 
 # Read Model fields
-X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')
+X = np.load('../Data/Data/model_fields_multiple_'+year+'.npy')[:2,:,:]
+print(X.shape)
 x_size = X.shape[-1]+1
 diff = x_size-6
 # Read Rain fall
-Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')
+Y = np.load('../Data/Data/Rainfalls_'+year+'.npy')[:2,:]
+print(Y.shape)
 # Broadcast Model Fields and Rainfall to workers
 X_bds = backend.broadcast(X)
 y_bds = backend.broadcast(Y)
-
-t0 = time.time()
 
 ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
 # Define prior hyperparmeters
@@ -127,10 +127,12 @@ else:
 
 n_sample_z = n_sample_z * (.05)
 n_sample_z = int(n_sample_z)
+print(n_sample_z)
 ################################################################################
 ######################################## Sampling ########################################
 #plt.figure()
 for ind_Gibbs in range(n_step_Gibbs):
+    t0 = time.time()
     theta_state = copy.deepcopy(Theta[-1])
     Z_state = copy.deepcopy(Z_list[-1])    #broadcast Z_state
     #print(Z_state)
@@ -193,7 +195,7 @@ for ind_Gibbs in range(n_step_Gibbs):
         prob_z = np.zeros(6)
         for ind_opt in range(6):
             possible_z[nonzero_y] = ind_opt + 1
-            prob_z[ind_opt] = loglikelihood_z(possible_z) + poisson.logpmf(ind_opt + 1, lambda_t_nonzero_y) # Add poisson hierarchical prior
+            prob_z[ind_opt] = loglikelihood_z(possible_z) #+ poisson.logpmf(ind_opt + 1, lambda_t_nonzero_y) # Add poisson hierarchical prior
         finite_indices = list(np.where(np.isfinite(prob_z))[0])
         #print(finite_indices)
         for ind in range(6):
@@ -227,6 +229,8 @@ for ind_Gibbs in range(n_step_Gibbs):
     ## Sampling of z is finished
 
     print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished' )
+    t = time.time() - t0
+    print('Time took: '+ str(t))
     # Add to stored samples
     Theta.append(copy.deepcopy(theta_state))
     Z_list.append(copy.deepcopy(accepted_zs))
