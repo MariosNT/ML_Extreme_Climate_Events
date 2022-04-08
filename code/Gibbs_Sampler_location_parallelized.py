@@ -125,7 +125,7 @@ else:
     Theta.append(copy.deepcopy(theta_state))
     Z_list.append(copy.deepcopy(Z_state))
 
-n_sample_z = n_sample_z * (.05)
+n_sample_z = n_sample_z * (.01)
 n_sample_z = int(n_sample_z)
 print(n_sample_z)
 ################################################################################
@@ -192,13 +192,13 @@ for ind_Gibbs in range(n_step_Gibbs):
         lambda_t = model(theta_state, k=x_size)._compute_lambda_one(possible_z, y_bds.value()[ind,:], np.squeeze(X_bds.value()[ind,:,:]))
         nonzero_y = np.random.choice(Non_Zero_indices[ind], size=1)
         lambda_t_nonzero_y = lambda_t[nonzero_y]
-        prob_z = np.zeros(6)
-        for ind_opt in range(6):
+        prob_z = np.zeros(9)
+        for ind_opt in range(9):
             possible_z[nonzero_y] = ind_opt + 1
             prob_z[ind_opt] = loglikelihood_z(possible_z) #+ poisson.logpmf(ind_opt + 1, lambda_t_nonzero_y) # Add poisson hierarchical prior
         finite_indices = list(np.where(np.isfinite(prob_z))[0])
         #print(finite_indices)
-        for ind in range(6):
+        for ind in range(9):
             if np.isfinite(prob_z[ind]):
                 if np.abs(prob_z[ind] - np.min(prob_z[finite_indices])) > 600:
                     finite_indices.remove(ind)
@@ -210,7 +210,7 @@ for ind_Gibbs in range(n_step_Gibbs):
         prob_z = prob_z / np.sum(prob_z)
         #print(prob_z)
         if int(sum(np.isnan(prob_z)) == 0) + int(np.size(prob_z) != 0) == 2:
-            possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 7)[finite_indices], p=prob_z)
+            possible_z[nonzero_y] = np.random.choice(a=np.arange(1, 10)[finite_indices], p=prob_z)
             final_z = possible_z
         else:
             final_z = z_bds.value()[ind,:]
