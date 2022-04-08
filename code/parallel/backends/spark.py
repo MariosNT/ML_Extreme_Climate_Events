@@ -1,5 +1,5 @@
 
-from abcpy.backends import Backend, PDS, BDS
+from parallel.backends import Backend, PDS, BDS
 
 class BackendSpark(Backend):
     """
