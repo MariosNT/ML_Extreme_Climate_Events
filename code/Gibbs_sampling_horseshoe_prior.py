@@ -8,8 +8,8 @@ import numpy as np
 from scipy.stats import gamma, multivariate_normal
 import pylab as plt
 from Sampler import EllipticalSliceSampling
-from timeseries_v3 import cptimeseries
-from timeseries_extreme import cptimeseries_extreme
+from timeseries_cp import cptimeseries
+from timeseries_cp_extreme import cptimeseries_extreme
 import sys
 from joblib import Parallel, delayed
 
