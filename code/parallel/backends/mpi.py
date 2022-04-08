@@ -4,7 +4,7 @@ import time
 import pickle
 
 from mpi4py import MPI
-from abcpy.backends import Backend, PDS, BDS
+from parallel.backends import Backend, PDS, BDS
 
 class BackendMPIMaster(Backend):
     """Defines the behavior of the master process
