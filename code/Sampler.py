@@ -30,16 +30,18 @@ def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.id
         theta_ellipse_max = theta_ellipse
         # new proposal
         f_prime = f * np.cos(theta_ellipse) + nu * np.sin(theta_ellipse)
-
+        lhd_f_prime = LHD(f_prime)
         ##### While loop until gets accepted ####
         # Accept and Reject Step
-        while LHD(f_prime) <= log_y:
+        while lhd_f_prime <= log_y:
             if theta_ellipse < 0:
                 theta_ellipse_min = theta_ellipse
             else:
                 theta_ellipse_max = theta_ellipse
             theta_ellipse = theta_ellipse_min + (theta_ellipse_max - theta_ellipse_min) * np.random.random(size=(1,))
             f_prime = f * np.cos(theta_ellipse) + nu * np.sin(theta_ellipse)
+            lhd_f_prime = LHD(f_prime)
+
         # Store the updated sample
         Samples.append(f_prime)
-    return Samples
+    return Samples, lhd_f_prime
