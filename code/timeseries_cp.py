@@ -39,6 +39,30 @@ class cptimeseries():
             Y[ind, :], Z[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
         return Z, Y, Lambda, Omega, Mu
 
+    def simulate_known_Z(self, X, Z):
+        n_X = X.shape[0]
+        Y = np.zeros(shape=(X.shape[0], X.shape[1]))
+        #Z = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Lambda = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Omega = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Mu = np.zeros(shape=(X.shape[0], X.shape[1]))
+        for ind in range(n_X):
+            z_t, y_t, lambda_t, omega_t, mu_t = self._simulate_one_known_Z(np.squeeze(X[ind,:,:]),Z.reshape(-1,))
+            Y[ind, :], Z[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
+        return Z, Y, Lambda, Omega, Mu
+
+    def simulate_known_Z_5(self, X, Z):
+        n_X = X.shape[0]
+        Y = np.zeros(shape=(X.shape[0], X.shape[1]))
+        #Z = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Lambda = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Omega = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Mu = np.zeros(shape=(X.shape[0], X.shape[1]))
+        for ind in range(n_X):
+            z_t, y_t, lambda_t, omega_t, mu_t = self._simulate_one_known_Z_5(np.squeeze(X[ind,:,:]),Z.reshape(-1,))
+            Y[ind, :], Z[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
+        return Z, Y, Lambda, Omega, Mu
+
     def loglikelihood(self, Z, Y, X):
         n_X = X.shape[0]
         lld = 0
@@ -83,6 +107,114 @@ class cptimeseries():
                 #     lambda_t[ind_t] = 0
                 # Simulate z_t
                 z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
+                # Calculate mu_t
+                num = np.nan_to_num(y_t[ind_t - (min(ind_t, 5)):ind_t] - (z_t[ind_t - (min(ind_t, 5)):ind_t] *
+                       mu_t[ind_t - (min(ind_t, 5)):ind_t]))
+                deno = np.nan_to_num(mu_t[ind_t - (min(ind_t,5)):ind_t] *
+                       np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
+                MA_comp = np.nan_to_num(np.sum(self.gamma_mu[-min(ind_t, 5):][z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]
+                                 * (num[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0] / deno[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0])))
+                mu_t[ind_t] = np.nan_to_num(np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
+                                    (np.log(mu_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_mu[0])) + MA_comp))
+                # Simulate y_t
+                if z_t[ind_t] == 0:
+                    y_t[ind_t] = 0
+                else:
+                    y_t[ind_t] = np.nan_to_num(np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t])))
+
+        return z_t, y_t, lambda_t, omega_t, mu_t
+
+    def _simulate_one_known_Z(self, X, z_t):
+        num_model_field, T = X.shape[1], X.shape[0]
+        XX = np.concatenate((np.ones(shape=(T, 1)), X), axis=1) #Adds a column of 1s at the beginning of X
+        # Only linear regression term
+        # For k values, see paper p.5 & Gibbs_sampling.py
+        # Shapes of ω, λ, μ = len(days)
+        omega_t = np.exp(np.dot(XX, self.beta_omega)) #Eq. 60 - k = the constant term multiplied by 1
+        lambda_t = np.exp(np.dot(XX, self.beta_lambda)) #Eq. 58 - Φ, Γ = 0
+        mu_t = np.exp(np.dot(XX, self.beta_mu)) #Eq. 59 - Φ, Γ = 0
+        # Add ARMA term (No need to define z_t as it is known)
+        y_t = np.zeros(shape=(T, )) #Rows of T zeros
+        for ind_t in range(T): # We loop for all days
+        # The ARMA terms are needed for day>1
+            if ind_t == 0:
+                # Simulate z_t (no need as known)
+                #z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
+                # Simulate y_t - Eq. 4, 31, 32
+                # Zero can only come if λ is zero
+                if z_t[ind_t] == 0:
+                    y_t[ind_t] = 0
+                else:
+                    y_t[ind_t] = np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale=1 / (omega_t[ind_t] * mu_t[ind_t]))
+            else:
+                # calculate lambda_t - Eq. 34-41 or/and 64, 65
+                lambda_t[ind_t] = np.exp(np.log(lambda_t[ind_t]) + np.sum(self.phi_lambda[-min(ind_t, 5):] *\
+                                        (np.log(lambda_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_lambda[0])) \
+                                         + np.sum(self.gamma_lambda[-min(ind_t, 5):] *\
+                                        ((z_t[ind_t - (min(ind_t, 5)):ind_t] - lambda_t[ind_t - (min(ind_t, 5)):ind_t]) /\
+                                         np.sqrt(lambda_t[ind_t - (min(ind_t, 5)):ind_t]))))
+                # if lambda_t[ind_t] > 10**9:
+                #     lambda_t[ind_t] = 10**9
+                # elif np.isnan(lambda_t[ind_t]):
+                #     lambda_t[ind_t] = 0
+                # Simulate z_t (no need as this is known)
+                #z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
+                # Calculate mu_t
+                num = np.nan_to_num(y_t[ind_t - (min(ind_t, 5)):ind_t] - (z_t[ind_t - (min(ind_t, 5)):ind_t] *
+                       mu_t[ind_t - (min(ind_t, 5)):ind_t]))
+                deno = np.nan_to_num(mu_t[ind_t - (min(ind_t,5)):ind_t] *
+                       np.sqrt(z_t[ind_t - (min(ind_t, 5)):ind_t] * omega_t[ind_t - (min(ind_t, 5)):ind_t]))
+                MA_comp = np.nan_to_num(np.sum(self.gamma_mu[-min(ind_t, 5):][z_t[ind_t - (min(ind_t, 5)):ind_t]!=0]
+                                 * (num[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0] / deno[z_t[ind_t - (min(ind_t, 5)):ind_t]!=0])))
+                mu_t[ind_t] = np.nan_to_num(np.exp(np.log(mu_t[ind_t]) + np.sum(self.phi_mu[-min(ind_t, 5):] *\
+                                    (np.log(mu_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_mu[0])) + MA_comp))
+                # Simulate y_t
+                if z_t[ind_t] == 0:
+                    y_t[ind_t] = 0
+                else:
+                    y_t[ind_t] = np.nan_to_num(np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale = 1 / (omega_t[ind_t] * mu_t[ind_t])))
+
+        return z_t, y_t, lambda_t, omega_t, mu_t
+
+    def _simulate_one_known_Z_5(self, X, z):
+        num_model_field, T = X.shape[1], X.shape[0]
+        XX = np.concatenate((np.ones(shape=(T, 1)), X), axis=1) #Adds a column of 1s at the beginning of X
+        # Only linear regression term
+        # For k values, see paper p.5 & Gibbs_sampling.py
+        # Shapes of ω, λ, μ = len(days)
+        omega_t = np.exp(np.dot(XX, self.beta_omega)) #Eq. 60 - k = the constant term multiplied by 1
+        lambda_t = np.exp(np.dot(XX, self.beta_lambda)) #Eq. 58 - Φ, Γ = 0
+        mu_t = np.exp(np.dot(XX, self.beta_mu)) #Eq. 59 - Φ, Γ = 0
+        # Add ARMA term
+        y_t = np.zeros(shape=(T, )) #Rows of T zeros
+        z_t = np.zeros(shape=(T, ))
+        z_t[:5] = z[:5]
+        for ind_t in range(T): # We loop for all days
+        # The ARMA terms are needed for day>1
+            if ind_t == 0:
+                # Simulate z_t (no need for first 5 days as known)
+                if ind_t > 4:
+                    z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
+                # Simulate y_t - Eq. 4, 31, 32
+                # Zero can only come if λ is zero
+                if z_t[ind_t] == 0:
+                    y_t[ind_t] = 0
+                else:
+                    y_t[ind_t] = np.random.gamma(shape=z_t[ind_t] / omega_t[ind_t], scale=1 / (omega_t[ind_t] * mu_t[ind_t]))
+            else:
+                # calculate lambda_t - Eq. 34-41 or/and 64, 65
+                lambda_t[ind_t] = np.exp(np.log(lambda_t[ind_t]) + np.sum(self.phi_lambda[-min(ind_t, 5):] *\
+                                        (np.log(lambda_t[ind_t - (min(ind_t, 5)):ind_t]) - self.beta_lambda[0])) \
+                                         + np.sum(self.gamma_lambda[-min(ind_t, 5):] *\
+                                        ((z_t[ind_t - (min(ind_t, 5)):ind_t] - lambda_t[ind_t - (min(ind_t, 5)):ind_t]) /\
+                                         np.sqrt(lambda_t[ind_t - (min(ind_t, 5)):ind_t]))))
+                # if lambda_t[ind_t] > 10**9:
+                #     lambda_t[ind_t] = 10**9
+                # elif np.isnan(lambda_t[ind_t]):
+                #     lambda_t[ind_t] = 0
+                # Simulate z_t (no need for first 5 days as known)
+                if ind_t > 4:
+                    z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
                 # Calculate mu_t
                 num = np.nan_to_num(y_t[ind_t - (min(ind_t, 5)):ind_t] - (z_t[ind_t - (min(ind_t, 5)):ind_t] *
                        mu_t[ind_t - (min(ind_t, 5)):ind_t]))

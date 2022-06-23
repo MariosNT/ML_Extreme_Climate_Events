@@ -16,8 +16,8 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z, prob_z):
     prob_z[ind_z] = loglikelihood_z(possible_z)
     return prob_z
 
-def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.01, z_range=9,\
-                      Parallel_case = False, extreme_case = True):
+def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
+                      Parallel_case = False, extreme_case = False):
     print('Gibbs sampling for location: '+str(location))
     if extreme_case:
         from timeseries_cp_extreme import cptimeseries_extreme as model
@@ -122,12 +122,12 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.01, z_range=9,\
 
     # How many nonzero z s would be sampled at each stage by using perc
     n_sample_z = int(n_sample_z * perc)
-    print(n_sample_z)
+    #print(n_sample_z)
     ################################################################################
     #### Now we want to implment a Gibbs sample where we update theta and z one after another
     ## Start sampling ##
-    start_time = time.time()
     for ind_Gibbs in range(n_step_Gibbs):
+        start_time = time.time()
         theta_state = copy.deepcopy(Theta[-1])
         z_state = copy.deepcopy(Z_list[-1])
         while True:
@@ -180,6 +180,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.01, z_range=9,\
     np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
     return 1
 
+X = np.load('../Data/Data/model_fields_multiple_1999_small_ef.npy')
+Y = np.load('../Data/Data/Rainfalls_1999_small.npy')
 
-
-
+sampling_function(4, X, Y, n_step_Gibbs = 25000, extreme_case=True)
