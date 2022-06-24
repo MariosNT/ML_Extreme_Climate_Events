@@ -180,7 +180,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
     np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
     return 1
 
-X = np.load('../Data/Data/model_fields_multiple_1999_small_ef.npy')
+X = np.load('../Data/Data/model_fields_multiple_1999_small.npy')
 Y = np.load('../Data/Data/Rainfalls_1999_small.npy')
 
 sampling_function(4, X, Y, n_step_Gibbs = 25000, extreme_case=True)
