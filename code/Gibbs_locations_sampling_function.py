@@ -17,18 +17,34 @@ def parallel_indices(ind_non, ind_z, possible_z, loglikelihood_z, prob_z):
     return prob_z
 
 def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
+                      year_training_start = "1998", year_training_end = "1999",\
                       Parallel_case = False, extreme_case = False):
-    print('Gibbs sampling for location: '+str(location))
+        
+    print()
+    print("Gibbs sampling for location: "+str(location))
+    print("Number of Gibbs Steps: ", n_step_Gibbs)
+    print("Sampling percentage: ", 100*perc, "%")
+    print("Max number of rainfalls per day: ", z_range)
+    print()
+
+    
     if extreme_case:
         from timeseries_cp_extreme import cptimeseries_extreme as model
+        print("We are running the extreme timeseries model")
+        print()
     else:
         from timeseries_cp import cptimeseries as model
+        print("We are running the standard timeseries model")
+        print()
 
-    year = '1999'
     if extreme_case:
-        filename = 'Posteriors/PostSample_' + year + '_cp_extreme_'+str(location)+'.npz'
+        filename = 'Posteriors/PostSample_' + year_training_start + '_' + year_training_end +\
+                   '_cp_extreme_' + str(location) + '_sr' + str(int(perc*100)) +\
+                   '_maxZ' + str(z_range) + '_gs'
     else:
-        filename = 'Posteriors/PostSample_' + year + '_cp_'+str(location)+'.npz'
+        filename = 'Posteriors/PostSample_' + year_training_start + '_' + year_training_end +\
+                   '_cp_' + str(location) + '_sr' + str(int(perc*100)) +\
+                   '_maxZ' + str(z_range) + '_gs'
 
     x_shape = X.shape
     y_shape = Y.shape
@@ -38,6 +54,12 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
 
     x_size = X.shape[-1] + 1
     diff = x_size - 6
+    
+    print("Shape of MFs: ", X.shape[-1])
+    print("Size of X is: ", X.shape)
+    print("Size of Y is: ", Y.shape)
+    print()
+
 
     ##### Defining the priors from Sherman's paper .... without prior on sigmas, so just taking mean for them
     # Define prior hyperparmeters
@@ -125,6 +147,8 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
     #print(n_sample_z)
     ################################################################################
     #### Now we want to implment a Gibbs sample where we update theta and z one after another
+    
+    start = timer()
     ## Start sampling ##
     for ind_Gibbs in range(n_step_Gibbs):
         start_time = time.time()
@@ -165,22 +189,25 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
             except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
                 continue
             break
-        print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished' )
-        print(str(ind_Gibbs+Initial_steps)+'-st/th iteration took: '+str(time.time()-start_time) )
         # Add to stored samples
         Theta.append(copy.deepcopy(theta_state))
         Z_list.append(copy.deepcopy(z_state))
         lhd_list.append(lhd_f_prime)
-        print(str(ind_Gibbs + Initial_steps) + '-st/th sample LogLikeliHood: ' + str(lhd_f_prime))
+        if (ind_Gibbs+1)%1==0:
+            print(str(ind_Gibbs+Initial_steps)+'-st/th iteration successfully finished')
+            print(str(ind_Gibbs+Initial_steps)+'-st/th iteration took: ' + str(time.time()-start_time) + ' sec')
+            print(str(ind_Gibbs + Initial_steps) + '-st/th sample LogLikeliHood: ' + str(lhd_f_prime))
+            print()
 
-        if np.mod(ind_Gibbs, 100) == 0:
-            ## Save the posterior samples
-            np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+        if np.mod(ind_Gibbs+1, 100) == 0:
+            ### Save the posterior samples
+            print("Another 100 steps")
+            print(filename+str(ind_Gibbs+1)+".npz")
+            #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
-    np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+    #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+    end = timer()
+    print()
+    print("Total time (sec):", end-start, " and total time (hours):", (end-start)/3600)
+
     return 1
-
-X = np.load('../Data/Data/model_fields_multiple_1999_small.npy')
-Y = np.load('../Data/Data/Rainfalls_1999_small.npy')
-
-sampling_function(4, X, Y, n_step_Gibbs = 25000, extreme_case=True)
