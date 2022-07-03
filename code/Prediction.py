@@ -24,9 +24,8 @@ import pylab as plt
 ###################
 
 extreme_case = True
-ef = True
 zknown = True
-postconvcheck = True
+postconvcheck = False
 savefig = False
 
 #####################
@@ -34,7 +33,7 @@ savefig = False
 #####################
 
 years_training = '1999'
-location = 4
+location = 8
 N_burn = 1000
 
 
@@ -52,16 +51,27 @@ if extreme_case:
 else:
     imlocation = 'Figure/Standard/'
 
+perc = 0.01
+z_range=9
+year_training_start = "1998"
+year_training_end = "1999"
 
 
 # Read Model fields
-if ef:
-    X = np.load('../Data/Data/model_fields_multiple_{}_small_ef.npy'.format(years_training))
-else:
-    X = np.load('../Data/Data/model_fields_multiple_{}_small.npy'.format(years_training))
+# if ef:
+#     X = np.load('../Data/Data/model_fields_multiple_{}_small_ef.npy'.format(years_training))
+# else:
+#     X = np.load('../Data/Data/model_fields_multiple_{}_small.npy'.format(years_training))
+
+# Model fields
+X = np.load('../Data/Data/model_fields_multiple_{}_{}_small_allMF.npy'.format(year_training_start, year_training_end))
+
+# Rainfall
+Y = np.load('../Data/Data/Rainfalls_{}_{}_small.npy'.format(year_training_start, year_training_end))
+
 
 # Read Rainfall data
-Y = np.load('../Data/Data/Rainfalls_{}_small.npy'.format(years_training))
+#Y = np.load('../Data/Data/Rainfalls_{}_small.npy'.format(years_training))
 x_shape = X.shape
 y_shape = Y.shape
 X = X[location, :, :].reshape(1,x_shape[1],x_shape[2])
@@ -70,16 +80,25 @@ x_size = X.shape[-1] + 1
 diff = x_size - 6
 
 # Define raw filename
+# if extreme_case:
+#     if ef:
+#         filename_raw = 'PostSample_'+ years_training + '_cp_extreme_'+str(location)+'_ef'
+#     else:
+#         filename_raw = 'PostSample_' + years_training + '_cp_extreme_'+str(location)
+# else:
+#     if ef:
+#         filename_raw = 'PostSample_'+ years_training + '_cp_'+str(location)+'_ef'
+#     else:
+#         filename_raw = 'PostSample_' + years_training + '_cp_'+str(location)
+
 if extreme_case:
-    if ef:
-        filename_raw = 'PostSample_'+ years_training + '_cp_extreme_'+str(location)+'_ef'
-    else:
-        filename_raw = 'PostSample_' + years_training + '_cp_extreme_'+str(location)
+    filename_raw = 'PostSample_' + year_training_start + '_' + year_training_end +\
+               '_cp_extreme_' + str(location) + '_sr' + str(int(perc*100)) +\
+               '_maxZ' + str(z_range) + '_gs'
 else:
-    if ef:
-        filename_raw = 'PostSample_'+ years_training + '_cp_'+str(location)+'_ef'
-    else:
-        filename_raw = 'PostSample_' + years_training + '_cp_'+str(location)
+    filename_raw = 'PostSample_' + year_training_start + '_' + year_training_end +\
+               '_cp_' + str(location) + '_sr' + str(int(perc*100)) +\
+               '_maxZ' + str(z_range) + '_gs'
 
 # Read saved posteriors
 filename = 'Posteriors/'+filename_raw + '.npz'

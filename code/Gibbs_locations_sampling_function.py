@@ -40,11 +40,11 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
     if extreme_case:
         filename = 'Posteriors/PostSample_' + year_training_start + '_' + year_training_end +\
                    '_cp_extreme_' + str(location) + '_sr' + str(int(perc*100)) +\
-                   '_maxZ' + str(z_range) + '_gs'
+                   '_maxZ' + str(z_range) + '_gs.npz'
     else:
         filename = 'Posteriors/PostSample_' + year_training_start + '_' + year_training_end +\
                    '_cp_' + str(location) + '_sr' + str(int(perc*100)) +\
-                   '_maxZ' + str(z_range) + '_gs'
+                   '_maxZ' + str(z_range) + '_gs.npz'
 
     x_shape = X.shape
     y_shape = Y.shape
@@ -154,41 +154,48 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         start_time = time.time()
         theta_state = copy.deepcopy(Theta[-1])
         z_state = copy.deepcopy(Z_list[-1])
-        while True:
-            try:
-                #### First sample theta using Elliptic Slice Sampler ###
-                # define conditional likelihood for theta
-                loglikelihood_theta = lambda theta: model(theta, k=x_size).loglikelihood(z_state, Y, X)
-                # Sample/Update theta
-                ## Here Mean and Sigma are the mean and var-cov matrix of Multivariate normal used as the prior.
-                ## f_0 defines the present state of the Markov chain
-                Samples, lhd_f_prime = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=true_theta_hp, Sigma=Sigma_0_hp,
-                                                  f_0=theta_state)
-                theta_state = Samples[-1]
-                # define conditional likelihood for z
-                loglikelihood_z = lambda z: model(theta_state, k=x_size).loglikelihood(z, Y, X)
-                # Sample/Update z
-                possible_z = z_state
-                nonzero_y = np.random.choice(nonzero_y_indices, size=n_sample_z)
-                #nonzero_y = np.random.choice(nonzero_y_indices, size=1)
-                for ind_nonzero in nonzero_y:
-                    prob_z = np.zeros(z_range)
-                    if Parallel_case:
-                        prob_z = Parallel(n_jobs=6, prefer="threads")(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z, prob_z)\
-                               for ind_z in range(z_range))
-                        prob_z = np.sum(prob_z, axis=0)
-                    else:
-                        for ind_z in range(z_range):
-                            possible_z[0, ind_nonzero] = ind_z + 1
-                            prob_z[ind_z] = loglikelihood_z(possible_z)
-                    finite_indices = np.isfinite(prob_z)
-                    prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
-                    possible_z[0, ind_nonzero] = np.random.choice(a=np.arange(1, z_range+1)[finite_indices],
-                                                               p=prob_z / np.sum(prob_z))
-                z_state = possible_z
-            except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
-                continue
-            break
+        # while True:
+        #     try:
+        #### First sample theta using Elliptic Slice Sampler ###
+        # define conditional likelihood for theta
+        loglikelihood_theta = lambda theta: model(theta, k=x_size).loglikelihood(z_state, Y, X)
+        # Sample/Update theta
+        ## Here Mean and Sigma are the mean and var-cov matrix of Multivariate normal used as the prior.
+        ## f_0 defines the present state of the Markov chain
+        Samples, lhd_f_prime = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=true_theta_hp, Sigma=Sigma_0_hp,
+                                          f_0=theta_state)
+        theta_state = Samples[-1]
+        print('Updated theta')
+        # define conditional likelihood for z
+        loglikelihood_z = lambda z: model(theta_state, k=x_size).loglikelihood(z, Y, X)
+        # Sample/Update z
+        possible_z = z_state
+        originial_z = copy.deepcopy(z_state)
+        #while True:
+        try:
+            nonzero_y = np.random.choice(nonzero_y_indices, size=n_sample_z)
+            #nonzero_y = np.random.choice(nonzero_y_indices, size=1)
+            for ind_nonzero in nonzero_y:
+                prob_z = np.zeros(z_range)
+                if Parallel_case:
+                    prob_z = Parallel(n_jobs=6, prefer="threads")(delayed(parallel_indices)(ind_nonzero, ind_z, possible_z, loglikelihood_z, prob_z)\
+                           for ind_z in range(z_range))
+                    prob_z = np.sum(prob_z, axis=0)
+                else:
+                    for ind_z in range(z_range):
+                        possible_z[0, ind_nonzero] = ind_z + 1
+                        prob_z[ind_z] = loglikelihood_z(possible_z)
+                finite_indices = np.isfinite(prob_z)
+                prob_z = np.exp(prob_z[finite_indices] - np.min(prob_z[finite_indices]))
+                possible_z[0, ind_nonzero] = np.random.choice(a=np.arange(1, z_range+1)[finite_indices],
+                                                           p=prob_z / np.sum(prob_z))
+            z_state = possible_z
+            print('Updated z')
+        except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
+            print('error so not updating')
+            z_state = originial_z
+            pass
+            #break
         # Add to stored samples
         Theta.append(copy.deepcopy(theta_state))
         Z_list.append(copy.deepcopy(z_state))
@@ -199,11 +206,11 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
             print(str(ind_Gibbs + Initial_steps) + '-st/th sample LogLikeliHood: ' + str(lhd_f_prime))
             print()
 
-        if np.mod(ind_Gibbs+1, 100) == 0:
+        if np.mod(ind_Gibbs+1, 20) == 0:
             ### Save the posterior samples
-            print("Another 100 steps")
-            print(filename+str(ind_Gibbs+1)+".npz")
-            #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+            print("Another 20 steps")
+            #print(filename+str(ind_Gibbs+1)+".npz")
+            np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
     #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
     end = timer()
