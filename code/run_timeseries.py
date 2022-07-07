@@ -19,7 +19,7 @@ else:
 
 
 Year_training_start = "1998"
-Year_training_end = "2000"
+Year_training_end = "1999"
 sampling_rate = 0.01
 grid = 'small'
 N_gibbs = 2
@@ -48,6 +48,7 @@ time = pd.date_range('{}-01-01'.format(year_start), '{}-12-31'.format(year_end),
 
 boolean_time = (time>=Year_training_start) & (time<Year_training_end)
 
+#print(time[boolean_time])
 
 X = X[:, boolean_time, :]
 Y = Y[:, boolean_time]
