@@ -25,6 +25,8 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
     print("Number of Gibbs Steps: ", n_step_Gibbs)
     print("Sampling percentage: ", 100*perc, "%")
     print("Max number of rainfalls per day: ", z_range)
+    print("Start year is: ", year_training_start,"- End year is: ", str(int(year_training_end)-1),\
+          "- Number of days: {}".format(X.shape[1]))
     print()
 
     
@@ -38,13 +40,13 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         print()
 
     if extreme_case:
-        filename = 'Posteriors/PostSample_' + year_training_start + '_' + year_training_end +\
+        filename = 'Posteriors/PostSample_' + year_training_start + '_' + str(int(year_training_end)-1) +\
                    '_cp_extreme_' + str(location) + '_sr' + str(int(perc*100)) +\
-                   '_maxZ' + str(z_range) + '_gs.npz'
+                   '_maxZ' + str(z_range) + '_gs'
     else:
-        filename = 'Posteriors/PostSample_' + year_training_start + '_' + year_training_end +\
+        filename = 'Posteriors/PostSample_' + year_training_start + '_' + str(int(year_training_end)-1) +\
                    '_cp_' + str(location) + '_sr' + str(int(perc*100)) +\
-                   '_maxZ' + str(z_range) + '_gs.npz'
+                   '_maxZ' + str(z_range) + '_gs'
 
     x_shape = X.shape
     y_shape = Y.shape
@@ -91,6 +93,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
 
     #### Now we want to implment a Gibbs sample where we update theta and z one after another
     n_sample_z = 5
+    
     ######################################## Initialization ########################################
     if os.path.isfile(filename):
         Theta = list(np.load(filename)['Theta'])
@@ -119,6 +122,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         zero_y_indices = en[bool_y_zero]
         nonzero_y_indices = en[np.invert(bool_y_zero)]
         n_sample_z = max(n_sample_z, len(nonzero_y_indices))
+        
         ## Lets first initialize theta and z for a Markov chain ##
         #### For non-zero y, get distribution of rainfalls and calculate quantiles
         #### Then use this to initialise z (1, 2, 3, 4), based on the quantiles
@@ -138,25 +142,27 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         z_state[bin_4] = 4
         z_state[zero_y_indices] = 0  # z_state an array of 0, 1
         z_state = z_state.reshape(1,-1)
+        
         # Add to stored samples
         Theta.append(copy.deepcopy(theta_state))
         Z_list.append(copy.deepcopy(z_state))
 
     # How many nonzero z s would be sampled at each stage by using perc
     n_sample_z = int(n_sample_z * perc)
-    #print(n_sample_z)
+
     ################################################################################
     #### Now we want to implment a Gibbs sample where we update theta and z one after another
     
     start = timer()
+    
     ## Start sampling ##
     for ind_Gibbs in range(n_step_Gibbs):
         start_time = time.time()
         theta_state = copy.deepcopy(Theta[-1])
         z_state = copy.deepcopy(Z_list[-1])
-        # while True:
-        #     try:
+
         #### First sample theta using Elliptic Slice Sampler ###
+        
         # define conditional likelihood for theta
         loglikelihood_theta = lambda theta: model(theta, k=x_size).loglikelihood(z_state, Y, X)
         # Sample/Update theta
@@ -166,15 +172,16 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
                                           f_0=theta_state)
         theta_state = Samples[-1]
         print('Updated theta')
+        
         # define conditional likelihood for z
         loglikelihood_z = lambda z: model(theta_state, k=x_size).loglikelihood(z, Y, X)
+
         # Sample/Update z
         possible_z = z_state
         originial_z = copy.deepcopy(z_state)
-        #while True:
+
         try:
             nonzero_y = np.random.choice(nonzero_y_indices, size=n_sample_z)
-            #nonzero_y = np.random.choice(nonzero_y_indices, size=1)
             for ind_nonzero in nonzero_y:
                 prob_z = np.zeros(z_range)
                 if Parallel_case:
@@ -195,7 +202,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
             print('error so not updating')
             z_state = originial_z
             pass
-            #break
+
         # Add to stored samples
         Theta.append(copy.deepcopy(theta_state))
         Z_list.append(copy.deepcopy(z_state))
@@ -209,8 +216,8 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         if np.mod(ind_Gibbs+1, 20) == 0:
             ### Save the posterior samples
             print("Another 20 steps")
-            #print(filename+str(ind_Gibbs+1)+".npz")
-            np.savez(filename, Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+            print(filename+str(ind_Gibbs+1)+".npz")
+            #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
     #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
     end = timer()

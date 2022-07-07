@@ -6,6 +6,7 @@ from scipy.stats import gamma, multivariate_normal
 def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.identity(29), f_0=np.zeros(shape=(29,))):
 ##### Implemented using the Murray et. al. Elliptical Slice Sampling (http://proceedings.mlr.press/v9/murray10a/murray10a.pdf)
 # Figure 2 ####
+
     Samples = []
 
     # Store initial value
@@ -34,8 +35,10 @@ def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.id
         # new proposal
         f_prime = f * np.cos(theta_ellipse) + nu * np.sin(theta_ellipse)
         lhd_f_prime = LHD(f_prime)
+        
         ##### While loop until gets accepted ####
         # Accept and Reject Step
+        # "count" to avoid getting stuck in a loop
         count = 0
         while lhd_f_prime <= log_y and count < 50:
             count = count + 1

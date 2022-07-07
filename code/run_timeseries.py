@@ -1,35 +1,61 @@
+import sys
 import numpy as np
+import pandas as pd
 import Gibbs_locations_sampling_function as GLSF
 
-import sys
-#print (sys.argv)
 
 """
 Loading data
 """
+
+automatic_locations = False
+
+if automatic_locations:
+    loc = int(sys.argv[1])
+    print(loc)
+else:
+    loc=4
+
+
+
 Year_training_start = "1998"
-Year_training_end = "1999"
-loc = int(sys.argv[1])
-print(loc)
-N_gibbs = 10000
-EC = True
+Year_training_end = "2000"
+sampling_rate = 0.01
+grid = 'small'
+N_gibbs = 2
+EC = False
+
+model_fields = "Sherman"
 
 
-# Model fields
-#X = np.load('../Data/Data/model_fields_multiple_{}_{}_small_allMF.npy'.format(Year_training_start, Year_training_end))[:,:,[0,1,2,3,6,7,8]]
+# Model fields selection
+X = np.load('../Data/Data/model_fields_multiple_1995_2018_{}_allMF.npy'.format(grid))
 
-X = np.load('../Data/Data/model_fields_multiple_{}_small_allMF.npy'.format(Year_training_end))[:,:,[0,1,2,3,6,7,8]]
-
-
+if model_fields == "Sherman":
+    X = X[:,:,[0,1,2,3,6,7,8]]
+elif model_fields == "Advection":
+    X = X[:,:,[0,1,2,3,4,5,8]]
+else:
+    X=X
+    
 # Rainfall
-#Y = np.load('../Data/Data/Rainfalls_{}_{}_small.npy'.format(Year_training_start, Year_training_end))
+Y = np.load('../Data/Data/Rainfalls_1995_2018_{}.npy'.format(grid))
 
-Y = np.load('../Data/Data/Rainfalls_{}_small.npy'.format(Year_training_end))
+# Time range selection
+year_start = 1995
+year_end = 2018
+time = pd.date_range('{}-01-01'.format(year_start), '{}-12-31'.format(year_end), periods=X.shape[1])
+
+boolean_time = (time>=Year_training_start) & (time<Year_training_end)
+
+
+X = X[:, boolean_time, :]
+Y = Y[:, boolean_time]
 
 """
 Run code
 """
 
-GLSF.sampling_function(location=loc, X=X, Y=Y, n_step_Gibbs=N_gibbs,\
-                       year_training_start = Year_training_start, year_training_end = Year_training_end,\
-                       extreme_case=EC)
+GLSF.sampling_function(location=loc, X=X, Y=Y, n_step_Gibbs=N_gibbs, perc=sampling_rate,\
+                        year_training_start = Year_training_start, year_training_end = Year_training_end,\
+                        extreme_case=EC)
