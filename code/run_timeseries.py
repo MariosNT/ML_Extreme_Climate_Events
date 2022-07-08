@@ -18,12 +18,12 @@ else:
 
 
 
-Year_training_start = "1999"
+Year_training_start = "1998"
 Year_training_end = "2000"
 sampling_rate = 0.1
 grid = 'small'
-N_gibbs = 2
-EC = False
+N_gibbs = 30
+EC = True
 
 model_fields = "Sherman"
 

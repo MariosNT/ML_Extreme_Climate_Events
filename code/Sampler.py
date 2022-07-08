@@ -49,7 +49,7 @@ def EllipticalSliceSampling(LHD, n=1000, Mean=np.zeros(shape=(29,)), Sigma=np.id
             theta_ellipse = theta_ellipse_min + (theta_ellipse_max - theta_ellipse_min) * np.random.random(size=(1,))
             f_prime = f * np.cos(theta_ellipse) + nu * np.sin(theta_ellipse)
             lhd_f_prime = LHD(f_prime)
-        print('final count: '+str(count))
+        #print('final count: '+str(count))
         if count == 50:
             f_prime = original_f
         # Store the updated sample

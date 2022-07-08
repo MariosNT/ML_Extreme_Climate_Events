@@ -171,7 +171,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         Samples, lhd_f_prime = EllipticalSliceSampling(LHD=loglikelihood_theta, n=1, Mean=true_theta_hp, Sigma=Sigma_0_hp,
                                           f_0=theta_state)
         theta_state = Samples[-1]
-        print('Updated theta')
+        #print('Updated theta')
         
         # define conditional likelihood for z
         loglikelihood_z = lambda z: model(theta_state, k=x_size).loglikelihood(z, Y, X)
@@ -197,7 +197,7 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
                 possible_z[0, ind_nonzero] = np.random.choice(a=np.arange(1, z_range+1)[finite_indices],
                                                            p=prob_z / np.sum(prob_z))
             z_state = possible_z
-            print('Updated z')
+            #print('Updated z')
         except (RuntimeError, ValueError, TypeError, NameError, ZeroDivisionError, OSError):
             print('error so not updating')
             z_state = originial_z
@@ -216,12 +216,11 @@ def sampling_function(location, X, Y, n_step_Gibbs = 2, perc = 0.1, z_range=9,\
         if np.mod(ind_Gibbs+1, 20) == 0:
             ### Save the posterior samples
             print("Another 20 steps")
-            print(filename+str(ind_Gibbs+1)+".npz")
-            #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
+            print(filename+".npz")
+            np.savez(filename+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
 
     #np.savez(filename+str(ind_Gibbs+1)+".npz", Z=Z_list, Theta=Theta, lhd_list=lhd_list)
     end = timer()
-    print()
     print("Total time (sec):", end-start, " and total time (hours):", (end-start)/3600)
 
     return 1

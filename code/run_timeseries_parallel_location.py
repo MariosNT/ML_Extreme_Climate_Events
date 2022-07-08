@@ -9,7 +9,7 @@ Year_training_end = "2000"
 sampling_rate = 0.1
 grid = 'small'
 N_gibbs = 2
-EC = False
+EC = True
 
 model_fields = "Sherman"
 
