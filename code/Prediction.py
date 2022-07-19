@@ -16,6 +16,9 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
               location, perc, z_range, grid,\
               extreme_case=True, model_fields="Sherman"):
     
+    """
+    Add location in "imlocation"?
+    """
     
     # "Extreme" or "Standard" model - Define posteriors' file names
     if extreme_case:   
@@ -54,11 +57,8 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     
 
     # We first load information for all times and then cut to the period of interest
-    
-    """ WHICH ONE DO WE WANT HERE? """
+    # We want to load the MF & Rainfalss for the period we want to predict
     boolean_time = (time>=Year_prediction_start) & (time<Year_prediction_end)
-    boolean_time = (time>=Year_training_start) & (time<Year_training_end)
-
     
     X = X[:, boolean_time, :]
     Y = Y[:, boolean_time]
@@ -74,10 +74,9 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     
     # Definitions to help with prediction model conventions
     x_size = X.shape[-1] + 1
-    diff = x_size - 6
     
     
-    # Read saved posteriors
+    # Read saved posteriors (from the training data set)
     
     # Theta - parameters of the model - (#Gibbs_Steps, #Parameters)
     # Z_list - rain predictions - (#Gibbs_Steps, Loc, #Days_training)
@@ -158,8 +157,9 @@ def model_prediction(Theta, Z_list, X, x_size, n_burn, imlocation, filename_raw,
         Y_samples = np.load(predict_filename)['Y_samples']
     else:
         Y_samples = []
-        for ind in range(1000):
-            print(ind)
+        N_samples = len(Theta) - n_burn
+        for ind in range(N_samples):
+            print("Sample: ", ind)
             if zknown:
                 z, y, lambda_t, _, _ = model(Theta[-ind], k=x_size).simulate_known_Z(X, Z_list[-ind])
             else:
@@ -170,11 +170,12 @@ def model_prediction(Theta, Z_list, X, x_size, n_burn, imlocation, filename_raw,
                     z, y, lambda_t, _, _ = model(Theta[-ind], k=x_size).simulate_known_Z(X, Z_list[-ind])
                 else:
                     z, y, lambda_t, _, _ = model(Theta[-ind], k=x_size).simulate_known_Z_5(X, Z_list[-ind])
-            print(np.mean(y))
+                print(np.mean(y))
+            print()
             Y_samples.append(y)
     #np.savez(predict_filename, Y_samples=Y_samples)
     
-    return Y_samples
+    return np.array(Y_samples)
 
 
 ####
@@ -272,6 +273,10 @@ def ROC_plot(tpr_array, fpr_array, auc_array, rains,\
         plt.show()   
 
 
+###
+### Check this function
+###
+
 def precipitation_above_x(Y, rain_thres, rainvalues, all_days=True):
     if np.shape(rainvalues)[0]==len(Y):
         all_days = len(rainvalues)
@@ -294,83 +299,83 @@ def precipitation_above_x(Y, rain_thres, rainvalues, all_days=True):
         return np.mean(prob_per_day)
 
 
-###
-### NEED TO CHANGE THIS
-###
-def predictions_plot(Y_samples, Year_training_start, Year_training_end, n_days, X, Y,\
+
+def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, X, Y,\
                      imlocation, filename_raw,\
                      zknown=True, savefig=False):
     #Plot prediction at a Specified location
-    Y_samples = np.array(Y_samples)
-    #print(Y_samples.shape)
-    year_start, year_end = Year_training_start, Year_training_end
-    time_plot = pd.date_range('{}-01-01'.format(year_start), '{}-12-31'.format(year_end), periods=n_days)
-    for location in range(X.shape[0]):
-        Y_mean = np.mean(Y_samples[:,location,:],axis=0)
-        y_median = np.median(Y_samples[:,location,:],axis=0)
-        y_32 = np.quantile(Y_samples[:,location,:],axis=0, q=0.32)
-        y_68 = np.quantile(Y_samples[:,location,:],axis=0, q=0.68)
-        y_80 = np.quantile(Y_samples[:,location,:],axis=0, q=0.8)
-        y_95 = np.quantile(Y_samples[:,location,:],axis=0, q=0.95)
-        y_99 = np.quantile(Y_samples[:,location,:],axis=0, q=0.99)
-        ### 1- Plot that uses the median & different quantiles, as predicted value and errors
-        # time = number of days that we predict rainfall for
-        plt.figure(figsize=(10, 8))
-        plt.plot(time_plot, Y[location,:], marker='+', linestyle='', color = 'black', label = 'Obs.')
-        plt.plot(time_plot, y_median, linestyle = '-', color = 'b', label='50 \%')
-        plt.fill_between(time_plot, y_32, y_68, color='red', label='32-68 \%')
-        plt.fill_between(time_plot, y_median, y_95, color='red', alpha=0.5, label='95 \%')
-        plt.plot(time_plot, y_99, linestyle = '--', color = 'r', label='99 \%')
-        plt.ylim(0, np.max(Y)+1)
-        plt.title("Y median - Years {}-{}".format(Year_training_start, Year_training_end))
-        plt.xlabel("Time")
-        plt.ylabel("precipitation (mm)")
-        plt.legend()
-        if zknown:
-            if savefig:
-                plt.savefig(imlocation+filename_raw+'_precipitation_median_'+Year_training_start+'_'+Year_training_end+'_zknown.png')
-            else:
-                plt.show()
+
+    time_plot = pd.date_range('{}-01-01'.format(Year_prediction_start), '{}-12-31'.format(Year_prediction_end), periods=n_days)
+    
+    #Y_mean = np.mean(Y_samples[:,0,:],axis=0)
+    y_median = np.median(Y_samples[:,0,:],axis=0)
+    y_32 = np.quantile(Y_samples[:,0,:],axis=0, q=0.32)
+    y_68 = np.quantile(Y_samples[:,0,:],axis=0, q=0.68)
+    #y_80 = np.quantile(Y_samples[:,0,:],axis=0, q=0.8)
+    y_95 = np.quantile(Y_samples[:,0,:],axis=0, q=0.95)
+    y_99 = np.quantile(Y_samples[:,0,:],axis=0, q=0.99)
+    ### 1- Plot that uses the median & different quantiles, as predicted value and errors
+    # time = number of days that we predict rainfall for
+    plt.figure(figsize=(10, 8))
+    plt.plot(time_plot, Y[0,:], marker='+', linestyle='', color = 'black', label = 'Obs.')
+    plt.plot(time_plot, y_median, linestyle = '-', color = 'b', label='50 \%')
+    plt.fill_between(time_plot, y_32, y_68, color='red', label='32-68 \%')
+    plt.fill_between(time_plot, y_median, y_95, color='red', alpha=0.5, label='50-95 \%')
+    plt.plot(time_plot, y_99, linestyle = '--', color = 'r', label='99 \%')
+    plt.ylim(0, np.max(Y)+1)
+    plt.title("Y median - Years {}-{}".format(Year_prediction_start, Year_prediction_end))
+    plt.xlabel("Time")
+    plt.ylabel("precipitation (mm)")
+    plt.legend()
+    if zknown:
+        if savefig:
+            plt.savefig(imlocation+filename_raw+'_precipitation_median_'+Year_prediction_start+\
+                        '_'+Year_prediction_end+'_zknown.png')
         else:
-            if savefig:
-                plt.savefig(imlocation+filename_raw+'_precipitation_median_'+Year_training_start+'_'+Year_training_end+'.png')
-            else:
-                plt.show()
-        plt.close()
+            plt.show()
+    else:
+        if savefig:
+            plt.savefig(imlocation+filename_raw+'_precipitation_median_'+Year_prediction_start+\
+                        '_'+Year_prediction_end+'.png')
+        else:
+            plt.show()
+    plt.close()
 
 
 
 ### 2- Scatter plot between observables and predictions (median & 95%)
 
  
-# def scatter_plot_fit():
-#     plt.figure(figsize=(10, 8))
-#     # Plot diagonal line
-#     x_values = np.linspace(0, np.max(np.log10(Y[location,:]+1)), 10)
-#     plt.plot(x_values, x_values, linestyle = '--', color = 'black')
+def scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation, savefig=False):
+    plt.figure(figsize=(10, 8))
+    # Plot diagonal line
+    x_values = np.linspace(0, np.max(np.log10(Y[0,:]+1)), 10)
+    plt.plot(x_values, x_values, linestyle = '--', color = 'black')
 
-#     # Simple linear fit
-#     z_median = np.polyfit(Y[location,:], y_median, 1)
-#     p_50 = np.poly1d(z_median)
+    # Simple linear fit
+    y_median = np.median(Y_samples[:,0,:],axis=0)
+    z_median = np.polyfit(Y[0,:], y_median, 1)
+    p_50 = np.poly1d(z_median)
 
-#     z_95 = np.polyfit(Y[location,:], y_95, 1)
-#     p_95 = np.poly1d(z_95)
+    y_95 = np.quantile(Y_samples[:,0,:],axis=0, q=0.95)
+    z_95 = np.polyfit(Y[0,:], y_95, 1)
+    p_95 = np.poly1d(z_95)
 
-#     # We transform the values to Y+1, before taking the log
-#     plt.scatter(np.log10(Y[location,:]+1), np.log10(y_median+1), alpha=0.8, marker='x', c='r', label = '50 \%')
-#     plt.scatter(np.log10(Y[location,:]+1), np.log10(y_95+1), alpha=0.8, marker='x', c='b', label = '95 \%')
-#     plt.plot(np.log10(np.sort(Y[location,:])+1), np.log10(p_50(np.sort(Y[location,:]))+1), linestyle = '-.', alpha=0.6, color='r')
-#     plt.plot(np.log10(np.sort(Y[location,:])+1), np.log10(p_95(np.sort(Y[location,:]))+1), linestyle = '--', alpha=0.6, color='b')
-#     plt.ylim(-0.05, np.max(np.log10(Y[location,:]+1)))
-#     plt.title("Scatter Log[Y+1] Plot - Years {}-{}".format(Year_training_start, Year_training_end))
-#     plt.ylabel("Predictions")
-#     plt.xlabel("Observations")
-#     plt.legend()
-#     if savefig:
-#         plt.savefig(imlocation+str(location)+"_scatter_plot_{}-{}.png".format(Year_training_start, Year_training_end))
-#     else:
-#         plt.show()
-#     plt.close()
+    # We transform the values to Y+1, before taking the log
+    plt.scatter(np.log10(Y[0,:]+1), np.log10(y_median+1), alpha=0.8, marker='x', c='r', label = '50 \%')
+    plt.scatter(np.log10(Y[0,:]+1), np.log10(y_95+1), alpha=0.8, marker='x', c='b', label = '95 \%')
+    plt.plot(np.log10(np.sort(Y[0,:])+1), np.log10(p_50(np.sort(Y[0,:]))+1), linestyle = '-.', alpha=0.6, color='r')
+    plt.plot(np.log10(np.sort(Y[0,:])+1), np.log10(p_95(np.sort(Y[0,:]))+1), linestyle = '--', alpha=0.6, color='b')
+    plt.ylim(-0.05, np.max(np.log10(Y[0,:]+1)))
+    plt.title("Scatter Log[Y+1] Plot - Years {}-{}".format(Year_prediction_start, Year_prediction_end))
+    plt.ylabel("Predictions")
+    plt.xlabel("Observations")
+    plt.legend()
+    if savefig:
+        plt.savefig(imlocation+"_scatter_plot_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
+    else:
+        plt.show()
+    plt.close()
 
 #     ### 3- Calculate RMS error & RMS spread - Eqs. (18) & MAB p.12
 
@@ -433,63 +438,64 @@ def predictions_plot(Y_samples, Year_training_start, Year_training_end, n_days, 
 #         plt.close()  
 #     else:
 #         plt.show()
+
         
 
-# def rain_probability():        
-#     rain_thresholds = np.arange(0, 30, 1)
-#     rain_probability_obs = []
-#     rain_probability_pred = []
-#     rain_probability_pred_95 = []
-#     rain_probability_samples = []
-#     rain_probability_samples_day = []
+def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation, savefig=False):        
+    rain_thresholds = np.arange(0, 30, 1)
+    rain_probability_obs = []
+    rain_probability_pred = []
+    rain_probability_pred_95 = []
+    rain_probability_samples = []
+    rain_probability_samples_day = []
     
-#     for rain in rain_thresholds:
-#         rain_probability_obs.append(precipitation_above_x(rain, Y[location,:]))
-#     #     rain_probability_pred.append(precipitation_above_x(rain, y_median))
-#     #     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
-#         rain_probability_samples.append(precipitation_above_x(rain, Y_samples[:,location,:]))
-#         # rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
+    for rain in rain_thresholds:
+        rain_probability_obs.append(precipitation_above_x(Y, rain, Y[0,:]))
+    #     rain_probability_pred.append(precipitation_above_x(rain, y_median))
+    #     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
+        rain_probability_samples.append(precipitation_above_x(Y, rain, Y_samples[:,0,:]))
+        # rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
     
-#     plt.figure(figsize=(10, 8))
-#     plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs.")
-#     # plt.plot(rain_thresholds, rain_probability_pred, linestyle = '-', color = 'black', label = "Pred.")
-#     # plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'black', label = "Pred. 95")
-#     plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
-#     # plt.plot(rain_thresholds, rain_probability_samples_day, marker = 'x', linestyle = ' ', color = 'black', label = "Pred. Samples/Day")
-#     plt.xlabel("Rain thresholds [x (mm)]")
-#     plt.ylabel("Probability [rain>x]")
-#     plt.legend()
-#     if savefig:
-#         plt.savefig(imlocation+"precipitation_prob_comparison_{}-{}.png".format(Year_training_start, Year_training_end))
-#     else:
-#         plt.show()
-#     plt.close()
+    plt.figure(figsize=(10, 8))
+    plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs.")
+    # plt.plot(rain_thresholds, rain_probability_pred, linestyle = '-', color = 'black', label = "Pred.")
+    # plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'black', label = "Pred. 95")
+    plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
+    # plt.plot(rain_thresholds, rain_probability_samples_day, marker = 'x', linestyle = ' ', color = 'black', label = "Pred. Samples/Day")
+    plt.xlabel("Rain thresholds [x (mm)]")
+    plt.ylabel("Probability [rain>x]")
+    plt.legend()
+    if savefig:
+        plt.savefig(imlocation+"precipitation_prob_comparison_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
+    else:
+        plt.show()
+    plt.close()
     
     
-# def ROC_plot():
-#     thresholds = np.arange(0,len(Y_samples),1)
+def ROC_plottting(Y_samples, Y):
+    thresholds = np.arange(0,len(Y_samples),1)
 
-#     Tpr0, Fpr0, auc0 = ROC_curves(0, Y[location,:], Y_samples[:,location,:], thresholds)
-#     Tpr5, Fpr5, auc5 = ROC_curves(5, Y[location,:], Y_samples[:,location,:], thresholds)
-#     Tpr15, Fpr15, auc15 = ROC_curves(15, Y[location,:], Y_samples[:,location,:], thresholds)
-#     Tpr25, Fpr25, auc25 = ROC_curves(25, Y[location,:], Y_samples[:,location,:], thresholds)
+    Tpr0, Fpr0, auc0 = ROC_curves(0, Y[0,:], Y_samples[:,0,:], thresholds)
+    Tpr5, Fpr5, auc5 = ROC_curves(5, Y[0,:], Y_samples[:,0,:], thresholds)
+    Tpr15, Fpr15, auc15 = ROC_curves(15, Y[0,:], Y_samples[:,0,:], thresholds)
+    Tpr25, Fpr25, auc25 = ROC_curves(25, Y[0,:], Y_samples[:,0,:], thresholds)
     
     
-#     rains = [0, 5, 15, 25]
-#     ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains)
+    rains = [0, 5, 15, 25]
+    ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains)
     
-# # ### Spread-Quantiles plot
-# # plt.figure(figsize=(10, 8))
+# ### Spread-Quantiles plot
+# plt.figure(figsize=(10, 8))
 
-# # # plot diagonal line
-# # x_values = np.linspace(0, np.max(quant_reg_mean), 10)
-# # plt.plot(x_values, x_values, linestyle = '--', color = 'black')
+# # plot diagonal line
+# x_values = np.linspace(0, np.max(quant_reg_mean), 10)
+# plt.plot(x_values, x_values, linestyle = '--', color = 'black')
 
-# # plt.plot(quant_reg_mean, rms_error_mean_quant, 'o-', color = 'black')
-# # plt.xlabel("Interquantiles binned")
-# # plt.ylabel("RMS error binned")
-# # if savefig:
-# #     plt.savefig(imlocation+"spread-quantiles_{}.png".format(year_training))
-# #     plt.close()  
-# # else:
-#     plt.show()   
+# plt.plot(quant_reg_mean, rms_error_mean_quant, 'o-', color = 'black')
+# plt.xlabel("Interquantiles binned")
+# plt.ylabel("RMS error binned")
+# if savefig:
+#     plt.savefig(imlocation+"spread-quantiles_{}.png".format(year_training))
+#     plt.close()  
+# else:
+    plt.show()   

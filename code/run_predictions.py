@@ -22,10 +22,9 @@ savefig = False
 location = 8
 N_burn = 1000
 
-perc=0.1
-z_range=9
+perc = 0.1
+z_range = 9
 grid = 'small'
-N_gibbs = 5803
 
 Year_training_start = "1998"
 Year_training_end = "2000"
@@ -49,4 +48,7 @@ pred.load_data(Year_training_start, Year_training_end, Year_prediction_start, Ye
 Y_samples = pred.model_prediction(Theta, Z_list, X, x_size, N_burn, imlocation, filename_raw)
 
 
-pred.predictions_plot(Y_samples, Year_training_start, Year_training_end, n_days, X, Y, imlocation, filename_raw)
+pred.predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, X, Y, imlocation, filename_raw)
+pred.rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation)
+pred.scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation)
+pred.ROC_plottting(Y_samples, Y)
