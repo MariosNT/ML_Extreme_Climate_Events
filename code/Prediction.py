@@ -24,14 +24,14 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     if extreme_case:   
         imlocation = 'Figure/Extreme/'
     
-        filename_raw = 'PostSample_' + Year_training_start + '_' + str(int(Year_training_end)-1) +\
+        filename_raw = 'PostSample_' + Year_training_start + '_' + str(int(Year_training_end)) +\
                '_cp_extreme_' + str(location) + '_sr' + str(int(perc*100)) +\
                '_maxZ' + str(z_range) + '_gs'
     
     else:   
         imlocation = 'Figure/Standard/'
     
-        filename_raw = 'PostSample_' + Year_training_start + '_' + str(int(Year_training_end)-1) +\
+        filename_raw = 'PostSample_' + Year_training_start + '_' + str(int(Year_training_end)) +\
                    '_cp_' + str(location) + '_sr' + str(int(perc*100)) +\
                    '_maxZ' + str(z_range) + '_gs'
     

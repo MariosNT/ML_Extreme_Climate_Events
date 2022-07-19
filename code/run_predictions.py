@@ -27,10 +27,10 @@ z_range = 9
 grid = 'small'
 
 Year_training_start = "1998"
-Year_training_end = "2000"
+Year_training_end = "1999"
 
-Year_prediction_start = "2000"
-Year_prediction_end = "2001"
+Year_prediction_start = "1998"
+Year_prediction_end = "2000"
 
 model_fields = "Sherman"
 
