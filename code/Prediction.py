@@ -248,7 +248,7 @@ def ROC_curves(rain_thres, rain_obs, rain_pred, roc_thres):
 
 
 def ROC_plot(tpr_array, fpr_array, auc_array, rains,\
-             Year_training_start, Year_training_end, imlocation,\
+             Year_prediction_start, Year_prediction_end, imlocation,\
              savefig=False): 
     plt.figure(figsize=(10, 8))
     linestyles = ['-', '--', '-.', ':']
@@ -267,7 +267,7 @@ def ROC_plot(tpr_array, fpr_array, auc_array, rains,\
     plt.ylabel("TPR")
     plt.legend()
     if savefig:
-        plt.savefig(imlocation+"ROC_{}-{}.png".format(Year_training_start, Year_training_end))
+        plt.savefig(imlocation+"ROC_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
         plt.close()  
     else:
         plt.show()   
@@ -472,7 +472,7 @@ def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, i
     plt.close()
     
     
-def ROC_plottting(Y_samples, Y):
+def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation):
     thresholds = np.arange(0,len(Y_samples),1)
 
     Tpr0, Fpr0, auc0 = ROC_curves(0, Y[0,:], Y_samples[:,0,:], thresholds)
@@ -482,7 +482,8 @@ def ROC_plottting(Y_samples, Y):
     
     
     rains = [0, 5, 15, 25]
-    ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains)
+    ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains,\
+             Year_prediction_start, Year_prediction_end, imlocation)
     
 # ### Spread-Quantiles plot
 # plt.figure(figsize=(10, 8))
