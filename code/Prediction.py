@@ -111,7 +111,7 @@ def postconvcheck(n_param, n_burn, theta, lhd_list, Year_training_start, Year_tr
         plt.plot(Gibbs_steps[:n_burn], theta[:n_burn,i], linestyle = '-', color = 'b')
         plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'g')
         plt.axvline(x=n_burn, color='r', linestyle = '--')
-        plt.xlabel('Sampling steps')
+        plt.xlabel('Gibbs steps')
         plt.title("Parameter {} for training years {}-{}".format(i+1, Year_training_start, Year_training_end))
         if savefig:
             plt.savefig(imlocation+"parameteres_{}_Gsteps_{}-{}.png".format(i+1, Year_training_start,\
@@ -124,7 +124,7 @@ def postconvcheck(n_param, n_burn, theta, lhd_list, Year_training_start, Year_tr
     plt.figure()
     plt.plot(lhd_list[:])
     plt.axvline(x=n_burn, color='r', linestyle = '--')
-    plt.xlabel('Sampling steps')
+    plt.xlabel('Gibbs steps')
     plt.ylabel('Log LHD')
     if savefig:
         plt.savefig(imlocation+'LHD.png')
@@ -484,7 +484,28 @@ def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlo
     rains = [0, 5, 15, 25]
     ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains,\
              Year_prediction_start, Year_prediction_end, imlocation)
+
+
+def calibration_error(Y_samples, Y):
+    quantiles = np.linspace(0.05, 0.99, 100)
+    ratio = np.zeros(len(quantiles))
+    N_days = Y_samples.shape[2]
     
+    for i in range(len(quantiles)):
+        ratio[i] = np.sum(Y[0,:]<np.quantile(Y_samples[:,0,:],axis=0, q=quantiles[i]))/N_days
+        
+        
+    cal_error = np.around(np.median(np.abs(ratio-quantiles)), decimals=2)
+    
+    plt.figure(figsize=(10, 8))
+    plt.plot(quantiles, ratio, linestyle = None, marker='*', color = 'red')
+    plt.plot(quantiles, quantiles, linestyle = '--', color = 'black', label = "Cal. Error = {}".format(cal_error))
+    plt.xlabel("a [quantiles]")
+    plt.ylabel("a* = N'/N")
+    plt.legend()
+
+
+
 # ### Spread-Quantiles plot
 # plt.figure(figsize=(10, 8))
 
@@ -499,4 +520,4 @@ def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlo
 #     plt.savefig(imlocation+"spread-quantiles_{}.png".format(year_training))
 #     plt.close()  
 # else:
-    plt.show()   
+#    plt.show()   
