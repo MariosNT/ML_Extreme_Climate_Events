@@ -90,7 +90,7 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     # Save the number of parameters in the model and the number of days training
     n_param = Theta.shape[1]
     n_days = X.shape[1]
-    print(n_days)
+    #print(n_days)
 
     return X, Y, Theta, Z_list, lhd_list, x_size, n_days, n_param, imlocation, filename_raw
 

@@ -43,14 +43,15 @@ class cptimeseries_extreme():
     def simulate_known_Z_5(self, X, Z):
         n_X = X.shape[0]
         Y = np.zeros(shape=(X.shape[0], X.shape[1]))
-        #Z = np.zeros(shape=(X.shape[0], X.shape[1]))
+        Zs = np.zeros(shape=(X.shape[0], X.shape[1]))
         Lambda = np.zeros(shape=(X.shape[0], X.shape[1]))
         Omega = np.zeros(shape=(X.shape[0], X.shape[1]))
         Mu = np.zeros(shape=(X.shape[0], X.shape[1]))
         for ind in range(n_X):
             z_t, y_t, lambda_t, omega_t, mu_t = self._simulate_one_known_Z_5(np.squeeze(X[ind,:,:]),Z.reshape(-1,))
-            Y[ind, :], Z[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
-        return Z, Y, Lambda, Omega, Mu
+            print("Shape of z_t", z_t.shape)
+            Y[ind, :], Zs[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
+        return Zs, Y, Lambda, Omega, Mu
 
     def loglikelihood(self, Z, Y, X):
         n_X = X.shape[0]
@@ -151,7 +152,7 @@ class cptimeseries_extreme():
         y_t, C_t, eta_t = np.zeros(shape=(T, )), np.zeros(shape=(T, )), np.zeros(shape=(T, ))
         IQR, F_inv_2nd_quantile = np.ones(shape=(T, )), np.zeros(shape=(T, ))
         for ind_t in range(T):
-            #print(ind_t)
+            print("index t", ind_t)
             if ind_t > 0:
             #     # Simulate z_t (no need as known)
             #     z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
