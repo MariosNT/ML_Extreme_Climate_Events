@@ -20,7 +20,7 @@ savefig = False
 #####################
 
 location = 4
-N_burn = 4000
+N_burn = 5500
 
 perc = 0.1
 z_range = 9
@@ -30,7 +30,7 @@ Year_training_start = "1999"
 Year_training_end = "1999"
 
 Year_prediction_start = "1999"
-Year_prediction_end = "2003"
+Year_prediction_end = "2000"
 
 model_fields = "Sherman"
 
