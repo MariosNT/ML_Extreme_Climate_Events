@@ -152,7 +152,7 @@ class cptimeseries_extreme():
         y_t, C_t, eta_t = np.zeros(shape=(T, )), np.zeros(shape=(T, )), np.zeros(shape=(T, ))
         IQR, F_inv_2nd_quantile = np.ones(shape=(T, )), np.zeros(shape=(T, ))
         for ind_t in range(T):
-            print("index t", ind_t)
+            #print("index t", ind_t)
             if ind_t > 0:
             #     # Simulate z_t (no need as known)
             #     z_t[ind_t] = np.random.poisson(lambda_t[ind_t])
