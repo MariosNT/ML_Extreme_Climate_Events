@@ -1,3 +1,4 @@
+import numpy as np
 import Prediction as pred
 
 
@@ -16,24 +17,35 @@ savefig = False
 #####################
 
 location = 4
-N_burn = 4000
 
 perc = 0.1
 z_range = 9
 grid = 'small'
 
-Year_training_start = "1999"
-Year_training_end = "1999"
-
 Year_prediction_start = "1999"
-Year_prediction_end = "2003"
-
-model_fields = "Sherman"
+Year_prediction_end = "2000"
 
 
-"""
-READ the Y_samples from the other side and create plots
-"""
+#######################################################
+# READ the Y_samples (Predictions) & Y (Observations) #
+#######################################################
 
-pred.predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, X, Y, imlocation, filename_raw)
-pred.rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation)
+
+filename_samples = 'PostSamples_' + Year_prediction_start + '_' + Year_prediction_end +\
+                   '_cp_locations_sr' + str(int(perc*100)) +\
+                   '_maxZ' + str(z_range) + '_grid_' + grid
+
+
+Y_file = "Posterior_samples/"+filename_samples+".npz"
+
+Y_samples = np.load(Y_file)['Y_samples']
+Y = np.load(Y_file)['Y']
+n_days = len(Y.T)
+                   
+#########################
+# Make prediction plots #
+#########################
+
+pred.predictions_plot(Y_samples[location], Year_prediction_start, Year_prediction_end, n_days,\
+                      Y[location], "test", "test")
+pred.rain_probability(Y_samples[location], Y[location], Year_prediction_start, Year_prediction_end, "test")

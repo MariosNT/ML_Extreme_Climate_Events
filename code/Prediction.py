@@ -90,7 +90,6 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     # Save the number of parameters in the model and the number of days training
     n_param = Theta.shape[1]
     n_days = X.shape[1]
-    #print(n_days)
 
     return X, Y, Theta, Z_list, lhd_list, x_size, n_days, n_param, imlocation, filename_raw
 
@@ -300,24 +299,26 @@ def precipitation_above_x(Y, rain_thres, rainvalues, all_days=True):
 
 
 
-def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, X, Y,\
+def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, Y,\
                      imlocation, filename_raw,\
                      zknown=True, savefig=False):
     #Plot prediction at a Specified location
 
     time_plot = pd.date_range('{}-01-01'.format(Year_prediction_start), '{}-12-31'.format(Year_prediction_end), periods=n_days)
     
+    Y_samples = Y_samples.T
+    
     #Y_mean = np.mean(Y_samples[:,0,:],axis=0)
-    y_median = np.median(Y_samples[:,0,:],axis=0)
-    y_32 = np.quantile(Y_samples[:,0,:],axis=0, q=0.32)
-    y_68 = np.quantile(Y_samples[:,0,:],axis=0, q=0.68)
+    y_median = np.median(Y_samples,axis=0)
+    y_32 = np.quantile(Y_samples,axis=0, q=0.32)
+    y_68 = np.quantile(Y_samples,axis=0, q=0.68)
     #y_80 = np.quantile(Y_samples[:,0,:],axis=0, q=0.8)
-    y_95 = np.quantile(Y_samples[:,0,:],axis=0, q=0.95)
-    y_99 = np.quantile(Y_samples[:,0,:],axis=0, q=0.99)
+    y_95 = np.quantile(Y_samples,axis=0, q=0.95)
+    y_99 = np.quantile(Y_samples,axis=0, q=0.99)
     ### 1- Plot that uses the median & different quantiles, as predicted value and errors
     # time = number of days that we predict rainfall for
     plt.figure(figsize=(10, 8))
-    plt.plot(time_plot, Y[0,:], marker='+', linestyle='', color = 'black', label = 'Obs.')
+    plt.plot(time_plot, Y, marker='+', linestyle='', color = 'black', label = 'Obs.')
     plt.plot(time_plot, y_median, linestyle = '-', color = 'b', label='50 \%')
     plt.fill_between(time_plot, y_32, y_68, color='red', label='32-68 \%')
     plt.fill_between(time_plot, y_median, y_95, color='red', alpha=0.5, label='50-95 \%')
@@ -449,11 +450,13 @@ def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, i
     rain_probability_samples = []
     rain_probability_samples_day = []
     
+    Y_samples = Y_samples.T
+    
     for rain in rain_thresholds:
-        rain_probability_obs.append(precipitation_above_x(Y, rain, Y[0,:]))
+        rain_probability_obs.append(precipitation_above_x(Y, rain, Y))
     #     rain_probability_pred.append(precipitation_above_x(rain, y_median))
     #     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
-        rain_probability_samples.append(precipitation_above_x(Y, rain, Y_samples[:,0,:]))
+        rain_probability_samples.append(precipitation_above_x(Y, rain, Y_samples))
         # rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
     
     plt.figure(figsize=(10, 8))
