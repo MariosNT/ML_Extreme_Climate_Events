@@ -50,7 +50,7 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     # Rainfall
     Y = np.load('../Data/Data/Rainfalls_1995_2018_{}.npy'.format(grid))
     
-    # Time range selection for prediction
+    # Time range selection for prediction (one timepoint/day)
     year_start = 1995
     year_end = 2018
     time = pd.date_range('{}-01-01'.format(year_start), '{}-12-31'.format(year_end), periods=X.shape[1])
@@ -82,7 +82,7 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     # Z_list - rain predictions - (#Gibbs_Steps, Loc, #Days_training)
     # lhd_list - evolution of log likelihood - (#Gibbs_Steps-1)
     
-    filename = 'Posteriors/'+filename_raw + '.npz'
+    filename = 'Posteriors/'+filename_raw +'.npz'
     Theta = np.load(filename)['Theta']
     Z_list = np.load(filename)['Z']
     lhd_list = np.load(filename)['lhd_list']
@@ -95,41 +95,43 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
 
   
 
-def postconvcheck(n_param, n_burn, theta, lhd_list, Year_training_start, Year_training_end,\
-                  imlocation, savefig=False):
+def postconvcheck(n_param, n_burn, theta, lhd_list, Year_training_start, Year_training_end, location,\
+                  imlocation, Param_plot = True, LHD_plot = True, savefig=False):
     """ Checking convergence of posteriors """
     sampling_steps = theta.shape[0]
     Gibbs_steps = np.arange(sampling_steps)
     print('No of posterior sampling steps: '+str(sampling_steps))
-
-    # Plot parameters timeseries
-    # separating burn-in & final samples
-    for i in range(n_param):
-
-        plt.figure(figsize=(10, 8))
-        plt.plot(Gibbs_steps[:n_burn], theta[:n_burn,i], linestyle = '-', color = 'b')
-        plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'g')
+    
+    if Param_plot:
+        # Plot parameters timeseries
+        # separating burn-in & final samples
+        for i in range(n_param):
+    
+            plt.figure(figsize=(10, 8))
+            plt.plot(Gibbs_steps[:n_burn], theta[:n_burn,i], linestyle = '-', color = 'b')
+            plt.plot(Gibbs_steps[n_burn:], theta[n_burn:,i], linestyle = '-', color = 'g')
+            plt.axvline(x=n_burn, color='r', linestyle = '--')
+            plt.xlabel('Gibbs steps')
+            plt.title("Parameter {} for training years {}-{} - loc = {}".format(i+1, Year_training_start, Year_training_end, location))
+            if savefig:
+                plt.savefig(imlocation+"parameteres_{}_Gsteps_{}-{}_loc_{}.png".format(i+1, Year_training_start,\
+                                                                                Year_training_end, location))
+            else:
+                plt.show()
+            plt.close()
+   
+    if LHD_plot:    
+        # Plot log LHD
+        plt.figure()
+        plt.plot(lhd_list[:])
         plt.axvline(x=n_burn, color='r', linestyle = '--')
         plt.xlabel('Gibbs steps')
-        plt.title("Parameter {} for training years {}-{}".format(i+1, Year_training_start, Year_training_end))
+        plt.ylabel('Log LHD - loc = {}'.format(location))
         if savefig:
-            plt.savefig(imlocation+"parameteres_{}_Gsteps_{}-{}.png".format(i+1, Year_training_start,\
-                                                                            Year_training_end))
+            plt.savefig(imlocation+'LHD_loc_{}.png'.format(location))
         else:
             plt.show()
-        plt.close()
-   
-    # Plot log LHD
-    plt.figure()
-    plt.plot(lhd_list[:])
-    plt.axvline(x=n_burn, color='r', linestyle = '--')
-    plt.xlabel('Gibbs steps')
-    plt.ylabel('Log LHD')
-    if savefig:
-        plt.savefig(imlocation+'LHD.png')
-    else:
-        plt.show()
-        plt.close()
+            plt.close()
 
 
 
@@ -245,6 +247,15 @@ def ROC_curves(rain_thres, rain_obs, rain_pred, roc_thres):
     
     return true_positives, false_positives, AUC
 
+def AUC_prediction(Y_samples, Y, rain_threshold):
+    Y_samples = Y_samples.T
+    
+    thresholds = np.arange(0,len(Y_samples),1)
+
+    _, _, auc = ROC_curves(rain_threshold, Y, Y_samples, thresholds)
+    
+    return auc
+
 
 def ROC_plot(tpr_array, fpr_array, auc_array, rains,\
              Year_prediction_start, Year_prediction_end, imlocation,\
@@ -299,24 +310,25 @@ def precipitation_above_x(Y, rain_thres, rainvalues, all_days=True):
 
 
 
-def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, Y,\
+def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, Y, location,\
                      imlocation, filename_raw,\
                      zknown=True, savefig=False):
-    #Plot prediction at a Specified location
+    """ Plot that uses the median & different quantiles, as predicted values and errors """
+    """ to predict rainfall at specified location """
+       
 
-    time_plot = pd.date_range('{}-01-01'.format(Year_prediction_start), '{}-12-31'.format(Year_prediction_end), periods=n_days)
+    #time_plot = number of days that we predict rainfall for
+    time_plot = pd.date_range('{}-01-01'.format(Year_prediction_start), '{}-12-31'.format(str(int(Year_prediction_end)-1)), periods=n_days)
     
     Y_samples = Y_samples.T
     
-    #Y_mean = np.mean(Y_samples[:,0,:],axis=0)
     y_median = np.median(Y_samples,axis=0)
     y_32 = np.quantile(Y_samples,axis=0, q=0.32)
     y_68 = np.quantile(Y_samples,axis=0, q=0.68)
-    #y_80 = np.quantile(Y_samples[:,0,:],axis=0, q=0.8)
     y_95 = np.quantile(Y_samples,axis=0, q=0.95)
     y_99 = np.quantile(Y_samples,axis=0, q=0.99)
-    ### 1- Plot that uses the median & different quantiles, as predicted value and errors
-    # time = number of days that we predict rainfall for
+    
+
     plt.figure(figsize=(10, 8))
     plt.plot(time_plot, Y, marker='+', linestyle='', color = 'black', label = 'Obs.')
     plt.plot(time_plot, y_median, linestyle = '-', color = 'b', label='50 \%')
@@ -324,7 +336,7 @@ def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_da
     plt.fill_between(time_plot, y_median, y_95, color='red', alpha=0.5, label='50-95 \%')
     plt.plot(time_plot, y_99, linestyle = '--', color = 'r', label='99 \%')
     plt.ylim(0, np.max(Y)+1)
-    plt.title("Y median - Years {}-{}".format(Year_prediction_start, Year_prediction_end))
+    plt.title("Y median - Years {}-{} - loc = {}".format(Year_prediction_start, Year_prediction_end, location))
     plt.xlabel("Time")
     plt.ylabel("precipitation (mm)")
     plt.legend()
@@ -348,26 +360,28 @@ def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_da
 
  
 def scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation, savefig=False):
+    Y_samples = Y_samples.T
+
     plt.figure(figsize=(10, 8))
     # Plot diagonal line
-    x_values = np.linspace(0, np.max(np.log10(Y[0,:]+1)), 10)
+    x_values = np.linspace(0, np.max(np.log10(Y+1)), 10)
     plt.plot(x_values, x_values, linestyle = '--', color = 'black')
 
     # Simple linear fit
-    y_median = np.median(Y_samples[:,0,:],axis=0)
-    z_median = np.polyfit(Y[0,:], y_median, 1)
+    y_median = np.median(Y_samples, axis=0)
+    z_median = np.polyfit(Y, y_median, 1)
     p_50 = np.poly1d(z_median)
 
-    y_95 = np.quantile(Y_samples[:,0,:],axis=0, q=0.95)
-    z_95 = np.polyfit(Y[0,:], y_95, 1)
+    y_95 = np.quantile(Y_samples, axis=0, q=0.95)
+    z_95 = np.polyfit(Y, y_95, 1)
     p_95 = np.poly1d(z_95)
 
     # We transform the values to Y+1, before taking the log
-    plt.scatter(np.log10(Y[0,:]+1), np.log10(y_median+1), alpha=0.8, marker='x', c='r', label = '50 \%')
-    plt.scatter(np.log10(Y[0,:]+1), np.log10(y_95+1), alpha=0.8, marker='x', c='b', label = '95 \%')
-    plt.plot(np.log10(np.sort(Y[0,:])+1), np.log10(p_50(np.sort(Y[0,:]))+1), linestyle = '-.', alpha=0.6, color='r')
-    plt.plot(np.log10(np.sort(Y[0,:])+1), np.log10(p_95(np.sort(Y[0,:]))+1), linestyle = '--', alpha=0.6, color='b')
-    plt.ylim(-0.05, np.max(np.log10(Y[0,:]+1)))
+    plt.scatter(np.log10(Y+1), np.log10(y_median+1), alpha=0.8, marker='x', c='r', label = '50 \%')
+    plt.scatter(np.log10(Y+1), np.log10(y_95+1), alpha=0.8, marker='x', c='b', label = '95 \%')
+    plt.plot(np.log10(np.sort(Y)+1), np.log10(p_50(np.sort(Y))+1), linestyle = '-.', alpha=0.6, color='r')
+    plt.plot(np.log10(np.sort(Y)+1), np.log10(p_95(np.sort(Y))+1), linestyle = '--', alpha=0.6, color='b')
+    plt.ylim(-0.05, np.max(np.log10(Y+1)))
     plt.title("Scatter Log[Y+1] Plot - Years {}-{}".format(Year_prediction_start, Year_prediction_end))
     plt.ylabel("Predictions")
     plt.xlabel("Observations")
@@ -442,29 +456,20 @@ def scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, i
 
         
 
-def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation, savefig=False):        
+def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, location, imlocation, savefig=False):        
     rain_thresholds = np.arange(0, 30, 1)
     rain_probability_obs = []
-    rain_probability_pred = []
-    rain_probability_pred_95 = []
     rain_probability_samples = []
-    rain_probability_samples_day = []
     
     Y_samples = Y_samples.T
     
     for rain in rain_thresholds:
         rain_probability_obs.append(precipitation_above_x(Y, rain, Y))
-    #     rain_probability_pred.append(precipitation_above_x(rain, y_median))
-    #     rain_probability_pred_95.append(precipitation_above_x(rain, y_95))
         rain_probability_samples.append(precipitation_above_x(Y, rain, Y_samples))
-        # rain_probability_samples_day.append(precipitation_above_x(rain, y_pred, False))
     
     plt.figure(figsize=(10, 8))
-    plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs.")
-    # plt.plot(rain_thresholds, rain_probability_pred, linestyle = '-', color = 'black', label = "Pred.")
-    # plt.plot(rain_thresholds, rain_probability_pred_95, linestyle = '-.', color = 'black', label = "Pred. 95")
+    plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs. - loc = {}".format(location))
     plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
-    # plt.plot(rain_thresholds, rain_probability_samples_day, marker = 'x', linestyle = ' ', color = 'black', label = "Pred. Samples/Day")
     plt.xlabel("Rain thresholds [x (mm)]")
     plt.ylabel("Probability [rain>x]")
     plt.legend()
@@ -476,26 +481,32 @@ def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, i
     
     
 def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation):
+    Y_samples = Y_samples.T
+    
     thresholds = np.arange(0,len(Y_samples),1)
 
-    Tpr0, Fpr0, auc0 = ROC_curves(0, Y[0,:], Y_samples[:,0,:], thresholds)
-    Tpr5, Fpr5, auc5 = ROC_curves(5, Y[0,:], Y_samples[:,0,:], thresholds)
-    Tpr15, Fpr15, auc15 = ROC_curves(15, Y[0,:], Y_samples[:,0,:], thresholds)
-    Tpr25, Fpr25, auc25 = ROC_curves(25, Y[0,:], Y_samples[:,0,:], thresholds)
+    Tpr0, Fpr0, auc0 = ROC_curves(0, Y, Y_samples, thresholds)
+    Tpr5, Fpr5, auc5 = ROC_curves(5, Y, Y_samples, thresholds)
+    Tpr15, Fpr15, auc15 = ROC_curves(15, Y, Y_samples, thresholds)
+    Tpr25, Fpr25, auc25 = ROC_curves(25, Y, Y_samples, thresholds)
     
     
     rains = [0, 5, 15, 25]
     ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains,\
              Year_prediction_start, Year_prediction_end, imlocation)
+        
+
 
 
 def calibration_error(Y_samples, Y):
+    Y_samples = Y_samples.T
+    
     quantiles = np.linspace(0.05, 0.99, 100)
     ratio = np.zeros(len(quantiles))
-    N_days = Y_samples.shape[2]
+    N_days = Y_samples.shape[1]
     
     for i in range(len(quantiles)):
-        ratio[i] = np.sum(Y[0,:]<np.quantile(Y_samples[:,0,:],axis=0, q=quantiles[i]))/N_days
+        ratio[i] = np.sum(Y<np.quantile(Y_samples, axis=0, q=quantiles[i]))/N_days
         
         
     cal_error = np.around(np.median(np.abs(ratio-quantiles)), decimals=2)

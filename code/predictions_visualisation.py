@@ -16,7 +16,8 @@ savefig = False
 ### Set Variables ###
 #####################
 
-location = 4
+N_locations = 1
+Loc_list = np.arange(N_locations)
 
 perc = 0.1
 z_range = 9
@@ -46,6 +47,11 @@ n_days = len(Y.T)
 # Make prediction plots #
 #########################
 
-pred.predictions_plot(Y_samples[location], Year_prediction_start, Year_prediction_end, n_days,\
-                      Y[location], "test", "test")
-pred.rain_probability(Y_samples[location], Y[location], Year_prediction_start, Year_prediction_end, "test")
+for loc in Loc_list:
+    pred.predictions_plot(Y_samples[loc], Year_prediction_start, Year_prediction_end, n_days,\
+                          Y[loc], loc, "test", "test")
+    pred.rain_probability(Y_samples[loc], Y[loc], Year_prediction_start, Year_prediction_end, loc, "test")
+    
+    pred.scatter_plot_fit(Y_samples[loc], Y[loc], Year_prediction_start, Year_prediction_end, "test")
+    pred.ROC_plottting(Y_samples[loc], Y[loc], Year_prediction_start, Year_prediction_end, "test")
+    pred.calibration_error(Y_samples[loc], Y[loc])

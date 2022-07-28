@@ -49,7 +49,7 @@ class cptimeseries_extreme():
         Mu = np.zeros(shape=(X.shape[0], X.shape[1]))
         for ind in range(n_X):
             z_t, y_t, lambda_t, omega_t, mu_t = self._simulate_one_known_Z_5(np.squeeze(X[ind,:,:]),Z.reshape(-1,))
-            print("Shape of z_t", z_t.shape)
+            #print("Shape of z_t", z_t.shape)
             Y[ind, :], Zs[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
         return Zs, Y, Lambda, Omega, Mu
 

@@ -7,10 +7,10 @@ import Prediction as pred
 ###################
 
 extreme_case = True
-z_known = True
+z_known = False
 postconvcheck = False
 savefig = False
-save_file = True
+save_file = False
 
 
 #####################
@@ -27,7 +27,7 @@ Year_training_start = "1999"
 Year_training_end = "1999"
 
 Year_prediction_start = "1999"
-Year_prediction_end = "2000"
+Year_prediction_end = "2001"
 
 model_fields = "Sherman"
 
@@ -37,7 +37,7 @@ filename_samples = 'PostSamples_' + Year_prediction_start + '_' + Year_predictio
 
 
 
-N_locations = 9
+N_locations = 3
 Loc_list = np.arange(N_locations)
 
 
@@ -59,6 +59,9 @@ for loc in Loc_list:
     Observations_array.append(Y[0,:])
 
 Predictions_array = np.array(Predictions_array)
+print()
+print("Predictions array shape", Predictions_array.shape)
+print()
 Observations_array = np.array(Observations_array)
     
 if save_file:
