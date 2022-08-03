@@ -258,7 +258,7 @@ def AUC_prediction(Y_samples, Y, rain_threshold):
 
 
 def ROC_plot(tpr_array, fpr_array, auc_array, rains,\
-             Year_prediction_start, Year_prediction_end, imlocation,\
+             Year_prediction_start, Year_prediction_end, location, imlocation,\
              savefig=False): 
     plt.figure(figsize=(10, 8))
     linestyles = ['-', '--', '-.', ':']
@@ -272,7 +272,8 @@ def ROC_plot(tpr_array, fpr_array, auc_array, rains,\
         plt.plot(fpr_array[i], tpr_array[i], linestyle = linestyles[i],\
                   marker = 'x', color = colors[i], alpha=0.3,\
                   label= "AUC = {}".format(auc_array[i]) + ", RT = {} mm".format(rains[i]))
-            
+    
+    plt.title("ROC curve - Years {}-{} - loc = {}".format(Year_prediction_start, Year_prediction_end, location))
     plt.xlabel("FPR")
     plt.ylabel("TPR")
     plt.legend()
@@ -311,7 +312,7 @@ def precipitation_above_x(Y, rain_thres, rainvalues, all_days=True):
 
 
 def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_days, Y, location,\
-                     imlocation, filename_raw,\
+                     imlocation,\
                      zknown=True, savefig=False):
     """ Plot that uses the median & different quantiles, as predicted values and errors """
     """ to predict rainfall at specified location """
@@ -342,13 +343,13 @@ def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_da
     plt.legend()
     if zknown:
         if savefig:
-            plt.savefig(imlocation+filename_raw+'_precipitation_median_'+Year_prediction_start+\
+            plt.savefig(imlocation+'precipitation_median_'+Year_prediction_start+\
                         '_'+Year_prediction_end+'_zknown.png')
         else:
             plt.show()
     else:
         if savefig:
-            plt.savefig(imlocation+filename_raw+'_precipitation_median_'+Year_prediction_start+\
+            plt.savefig(imlocation+'precipitation_median_'+Year_prediction_start+\
                         '_'+Year_prediction_end+'.png')
         else:
             plt.show()
@@ -359,7 +360,7 @@ def predictions_plot(Y_samples, Year_prediction_start, Year_prediction_end, n_da
 ### 2- Scatter plot between observables and predictions (median & 95%)
 
  
-def scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation, savefig=False):
+def scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, location, imlocation, savefig=False):
     Y_samples = Y_samples.T
 
     plt.figure(figsize=(10, 8))
@@ -382,12 +383,13 @@ def scatter_plot_fit(Y_samples, Y, Year_prediction_start, Year_prediction_end, i
     plt.plot(np.log10(np.sort(Y)+1), np.log10(p_50(np.sort(Y))+1), linestyle = '-.', alpha=0.6, color='r')
     plt.plot(np.log10(np.sort(Y)+1), np.log10(p_95(np.sort(Y))+1), linestyle = '--', alpha=0.6, color='b')
     plt.ylim(-0.05, np.max(np.log10(Y+1)))
-    plt.title("Scatter Log[Y+1] Plot - Years {}-{}".format(Year_prediction_start, Year_prediction_end))
+    plt.title("Scatter Log[Y+1] Plot - Years {}-{} - loc = {}".format(Year_prediction_start, Year_prediction_end,\
+                                                                      location))
     plt.ylabel("Predictions")
     plt.xlabel("Observations")
     plt.legend()
     if savefig:
-        plt.savefig(imlocation+"_scatter_plot_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
+        plt.savefig(imlocation+"scatter_plot_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
     else:
         plt.show()
     plt.close()
@@ -468,19 +470,23 @@ def rain_probability(Y_samples, Y, Year_prediction_start, Year_prediction_end, l
         rain_probability_samples.append(precipitation_above_x(Y, rain, Y_samples))
     
     plt.figure(figsize=(10, 8))
-    plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--', color = 'black', label = "Obs. - loc = {}".format(location))
+    plt.plot(rain_thresholds, rain_probability_obs, linestyle = '--',\
+             color = 'black', label = "Obs. - loc = {}".format(location))
     plt.plot(rain_thresholds, rain_probability_samples, linestyle = ':', color = 'black', label = "Pred. Samples")
     plt.xlabel("Rain thresholds [x (mm)]")
     plt.ylabel("Probability [rain>x]")
+    plt.title("Rain probability - Years {}-{} - loc = {}".format(Year_prediction_start, Year_prediction_end,\
+                                                                  location))
     plt.legend()
     if savefig:
-        plt.savefig(imlocation+"precipitation_prob_comparison_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
+        plt.savefig(imlocation+"precipitation_prob_comparison_{}-{}.png".format(Year_prediction_start,\
+                                                                                Year_prediction_end))
     else:
         plt.show()
     plt.close()
     
     
-def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlocation):
+def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, loc, imlocation, savefig):
     Y_samples = Y_samples.T
     
     thresholds = np.arange(0,len(Y_samples),1)
@@ -493,12 +499,13 @@ def ROC_plottting(Y_samples, Y, Year_prediction_start, Year_prediction_end, imlo
     
     rains = [0, 5, 15, 25]
     ROC_plot([Tpr0, Tpr5, Tpr15, Tpr25], [Fpr0, Fpr5, Fpr15, Fpr25], [auc0, auc5, auc15, auc25], rains,\
-             Year_prediction_start, Year_prediction_end, imlocation)
+             Year_prediction_start, Year_prediction_end, loc, imlocation, savefig)
         
 
 
 
-def calibration_error(Y_samples, Y):
+def calibration_error(Y_samples, Y, Year_prediction_start, Year_prediction_end, location,\
+                      imlocation, savefig):
     Y_samples = Y_samples.T
     
     quantiles = np.linspace(0.05, 0.99, 100)
@@ -514,9 +521,17 @@ def calibration_error(Y_samples, Y):
     plt.figure(figsize=(10, 8))
     plt.plot(quantiles, ratio, linestyle = None, marker='*', color = 'red')
     plt.plot(quantiles, quantiles, linestyle = '--', color = 'black', label = "Cal. Error = {}".format(cal_error))
+    plt.title("Calibration Error - Years {}-{} - loc = {}".format(Year_prediction_start, Year_prediction_end,\
+                                                                      location))
     plt.xlabel("a [quantiles]")
     plt.ylabel("a* = N'/N")
     plt.legend()
+    
+    if savefig:
+        plt.savefig(imlocation+"calibration_error_{}-{}.png".format(Year_prediction_start, Year_prediction_end))
+    else:
+        plt.show()
+    plt.close()
 
 
 
