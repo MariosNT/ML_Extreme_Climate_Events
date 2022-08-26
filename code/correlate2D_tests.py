@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 ### Create test data ###
 ########################
 
-archive_tests = True
+archive_tests = False
 
 Image_size = 24
 picture_1 = rng.integers(1, 10, size = (Image_size, Image_size))

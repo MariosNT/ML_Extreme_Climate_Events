@@ -23,8 +23,11 @@ visualising_samples = True
 ### Set Variables ###
 #####################
 
-Year_prediction_start = 1999
-Year_prediction_end = 2000
+Year_training_start = 1999
+Year_training_end = 1999 #Year Included
+
+Year_prediction_start = 2000
+Year_prediction_end = 2002 #Year NOT Included
 
 
 
@@ -32,10 +35,13 @@ Year_prediction_end = 2000
 Run code
 """
 if creating_samples:
-    psamples.predicting_samples(1999, 1999, Year_prediction_start, Year_prediction_end, N_samples=1000, save_file=True,\
-                                z_known=False)
+    psamples.predicting_samples(Year_training_start, Year_training_end,\
+                                Year_prediction_start, Year_prediction_end, N_samples=1000,\
+                                save_file=True,\
+                                z_known=False, N_locations=9)
 
 
 if visualising_samples:
-    pvis.prediction_visualisation(Year_prediction_start, Year_prediction_end, N_locations=4)
+    pvis.prediction_visualisation(1, Year_prediction_start, Year_prediction_end,\
+                                  N_locations=9, savefig=True)
 

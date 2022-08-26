@@ -30,6 +30,13 @@ class cptimeseries_extreme():
 
     def simulate_known_Z(self, X, Z):
         n_X = X.shape[0]
+        
+        # print()
+        # print("Z known")
+        # print("nX:", n_X)
+        # print("Shape of X", X.shape)
+        # print("Shape Z:", Z.shape)
+        
         Y = np.zeros(shape=(X.shape[0], X.shape[1]))
         #Z = np.zeros(shape=(X.shape[0], X.shape[1]))
         Lambda = np.zeros(shape=(X.shape[0], X.shape[1]))
@@ -42,6 +49,12 @@ class cptimeseries_extreme():
 
     def simulate_known_Z_5(self, X, Z):
         n_X = X.shape[0]
+        
+        # print()
+        # print("Z unknown 5")
+        # print("nX:", n_X)
+        # print("Shape of X", X.shape)
+        # print("Shape of Z:", Z.shape)
         Y = np.zeros(shape=(X.shape[0], X.shape[1]))
         Zs = np.zeros(shape=(X.shape[0], X.shape[1]))
         Lambda = np.zeros(shape=(X.shape[0], X.shape[1]))
@@ -49,7 +62,7 @@ class cptimeseries_extreme():
         Mu = np.zeros(shape=(X.shape[0], X.shape[1]))
         for ind in range(n_X):
             z_t, y_t, lambda_t, omega_t, mu_t = self._simulate_one_known_Z_5(np.squeeze(X[ind,:,:]),Z.reshape(-1,))
-            #print("Shape of z_t", z_t.shape)
+            # print("Shape of z_t", z_t.shape)
             Y[ind, :], Zs[ind,:], Lambda[ind,:], Omega[ind, :], Mu[ind, :] = y_t, z_t, lambda_t, omega_t, mu_t
         return Zs, Y, Lambda, Omega, Mu
 
@@ -228,6 +241,7 @@ class cptimeseries_extreme():
         sigma_t = np.exp(np.dot(XX, self.beta_sigma))
         # Add ARMA term
         # Add ARMA term (No need to define z_t as it is known)
+        # print("Shape of T is:", T)
         z_t = np.zeros(shape=(T, ))
         z_t[:5] = z[:5]
         y_t, C_t, eta_t = np.zeros(shape=(T, )), np.zeros(shape=(T, )), np.zeros(shape=(T, ))

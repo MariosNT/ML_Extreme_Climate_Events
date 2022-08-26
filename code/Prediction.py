@@ -14,7 +14,7 @@ import pylab as plt
 
 def load_data(Year_training_start, Year_training_end, Year_prediction_start, Year_prediction_end,\
               location, perc, z_range, grid,\
-              extreme_case=True, model_fields="Sherman"):
+              extreme_case=True, zknown=False, model_fields="Sherman"):
     
     """
     Add location in "imlocation"?
@@ -60,21 +60,49 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
     # We want to load the MF & Rainfalss for the period we want to predict
     boolean_time = (time>=Year_prediction_start) & (time<Year_prediction_end)
     
-    X = X[:, boolean_time, :]
-    Y = Y[:, boolean_time]
+    # Uncomment below - if want to cross-check range of prediction
+    # print("Pred start:", time[boolean_time][0])
+    # print("Pred end:", time[boolean_time][-1])
+    
+    X_pred = X[:, boolean_time, :]
+    Y_pred = Y[:, boolean_time]
     
     
     # Re-configure fields shapes, to specify location
     # From (#Loc, #Days, #Model_Fields) -> (Loc, #Days, #Model_Fields)
-    x_shape = X.shape
-    y_shape = Y.shape
-    X = X[location, :, :].reshape(1,x_shape[1],x_shape[2])
-    Y = Y[location, :].reshape(1,y_shape[1])
+    x_shape = X_pred.shape
+    y_shape = Y_pred.shape
+    X_pred = X_pred[location, :, :].reshape(1,x_shape[1],x_shape[2])
+    Y_pred = Y_pred[location, :].reshape(1,y_shape[1])
 
     
     # Definitions to help with prediction model conventions
-    x_size = X.shape[-1] + 1
+    x_size = X_pred.shape[-1] + 1
     
+    if not(zknown):
+        # If we don't know z, we add only the last 5 days of the training set
+        # as info, when predicting the samples
+        bool_training = (time>=Year_training_start) & (time<str(int(Year_training_end)+1))
+
+        # Uncomment below - if want to cross-check range of training        
+        # print("Train start:", time[bool_training][0])
+        # print("Train end:", time[bool_training][-1])
+
+        X_train = X[:, bool_training, :]
+        Y_train = Y[:, bool_training]
+        
+        xt_shape = X_train.shape
+        yt_shape = Y_train.shape
+        X_train = X_train[location, :, :].reshape(1,xt_shape[1],xt_shape[2])
+        Y_train = Y_train[location, :].reshape(1,yt_shape[1])
+                
+        X_train = X_train[:,-5:,:]
+        Y_train = Y_train[:,-5:]
+        
+        
+        X_pred = np.concatenate((X_train, X_pred), axis=1)
+        Y_pred = np.concatenate((Y_train, Y_pred), axis=1)
+        
     
     # Read saved posteriors (from the training data set)
     
@@ -89,9 +117,9 @@ def load_data(Year_training_start, Year_training_end, Year_prediction_start, Yea
 
     # Save the number of parameters in the model and the number of days training
     n_param = Theta.shape[1]
-    n_days = X.shape[1]
+    n_days = X_pred.shape[1]
 
-    return X, Y, Theta, Z_list, lhd_list, x_size, n_days, n_param, imlocation, filename_raw
+    return X_pred, Y_pred, Theta, Z_list, lhd_list, x_size, n_days, n_param, imlocation, filename_raw
 
   
 
@@ -161,6 +189,8 @@ def model_prediction(Theta, Z_list, X, x_size, n_burn, imlocation, filename_raw,
         N_samples = len(Theta) - n_burn
         for ind in range(N_samples):
             print("Sample: ", ind)
+            # print("Shape Z_list is (pred.)", Z_list.shape)
+            # print("Shape Z_list used", Z_list[-ind].shape)
             if zknown:
                 z, y, lambda_t, _, _ = model(Theta[-ind], k=x_size).simulate_known_Z(X, Z_list[-ind])
             else:
